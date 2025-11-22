@@ -1,0 +1,156 @@
+{
+  "index_patterns": ["platform-events-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "refresh_interval": "5s",
+      "index": {
+        "lifecycle": {
+          "name": "platform-events-policy",
+          "rollover_alias": "platform-events"
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "event_type": {
+          "type": "keyword"
+        },
+        "event_category": {
+          "type": "keyword"
+        },
+        
+        "user_id": {
+          "type": "keyword"
+        },
+        "username": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text"
+            }
+          }
+        },
+        "email": {
+          "type": "keyword"
+        },
+        
+        "game_id": {
+          "type": "keyword"
+        },
+        "game_type": {
+          "type": "keyword"
+        },
+        "game_name": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text"
+            }
+          }
+        },
+        "player_count": {
+          "type": "integer"
+        },
+        "has_ai_player": {
+          "type": "boolean"
+        },
+        "difficulty_level": {
+          "type": "keyword"
+        },
+        "game_duration_seconds": {
+          "type": "integer"
+        },
+        
+        "winner_id": {
+          "type": "keyword"
+        },
+        "winner_type": {
+          "type": "keyword"
+        },
+        "winning_score": {
+          "type": "integer"
+        },
+        
+        "achievement_id": {
+          "type": "keyword"
+        },
+        "achievement_name": {
+          "type": "keyword"
+        },
+        
+        "friend_id": {
+          "type": "keyword"
+        },
+        
+        "session_id": {
+          "type": "keyword"
+        },
+        "session_duration_seconds": {
+          "type": "integer"
+        },
+        
+        "page_url": {
+          "type": "keyword"
+        },
+        "referrer": {
+          "type": "keyword"
+        },
+        
+        "purchase_id": {
+          "type": "keyword"
+        },
+        "product_id": {
+          "type": "keyword"
+        },
+        "amount": {
+          "type": "float"
+        },
+        "currency": {
+          "type": "keyword"
+        },
+        
+        "payment_method": {
+          "type": "keyword"
+        },
+        "payment_status": {
+          "type": "keyword"
+        },
+        
+        "ip_address": {
+          "type": "ip"
+        },
+        "user_agent": {
+          "type": "text"
+        },
+        "device_type": {
+          "type": "keyword"
+        },
+        "browser": {
+          "type": "keyword"
+        },
+        "platform": {
+          "type": "keyword"
+        },
+        
+        "metadata": {
+          "type": "object",
+          "enabled": false
+        },
+        
+        "tags": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "priority": 500,
+  "version": 1,
+  "_meta": {
+    "description": "Template for bordspelplatform events analytics"
+  }
+}
