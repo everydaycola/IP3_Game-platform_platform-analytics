@@ -94,7 +94,7 @@ class EventGenerator:
             "browser": random.choice(self.BROWSERS),
             "platform": random.choice(self.PLATFORMS),
         }
-    
+
     def generate_user_logged_out(self, user: Dict, session_id: str, login_time: datetime) -> Dict:
         """Generate user logout event"""
         logout_time = login_time + timedelta(minutes=random.randint(15, 180))
@@ -107,7 +107,7 @@ class EventGenerator:
             "session_start": login_time.isoformat() + "Z",
             "session_end": logout_time.isoformat() + "Z",
         }
-    
+
     def generate_user_registered(self) -> Dict:
         """Generate user registration event"""
         new_user_id = f"user_{random.randint(100, 999)}"
@@ -341,13 +341,13 @@ def main():
             time.sleep(0.5)  # Small delay between sessions
         
         print("\n" + "=" * 50)
-        print(f"✅ Successfully generated events for {num_sessions} sessions!")
-        print("\n💡 Check your Kibana dashboard at http://localhost:5601")
+        print(f"Successfully generated events for {num_sessions} sessions!")
+        print("\nCheck your Kibana dashboard at http://localhost:5601")
         
     except KeyboardInterrupt:
-        print("\n\n⚠️  Generation interrupted by user")
+        print("\n\nGeneration interrupted by user")
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
     finally:
         generator.close()
         print("🔌 Connection closed")
