@@ -23,7 +23,7 @@ function wait_for_elasticsearch {
 		local -i exit_code=0
 		output="$(curl "${args[@]}")" || exit_code=$?
 
-		if [[${exit_code} -eq 0 ]]; then
+		if [[ ${exit_code} -eq 0 ]]; then
 			if [[ "${output: -3}" -eq 200 ]]; then
 				result=0
 				break
