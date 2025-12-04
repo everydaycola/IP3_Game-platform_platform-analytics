@@ -119,7 +119,7 @@ Events gerelateerd aan game sessies en gameplay.
   "achievement_id": "uuid",
   "achievement_name": "First Win",
   "achievement_category": "milestone|skill|social",
-  "game_type": "Chess"
+  "game_name": "Chess"
 }
 ```
 
@@ -222,7 +222,7 @@ Events gerelateerd aan platform interacties en transacties.
   "timestamp": "2024-12-04T14:00:00Z",
   "user_id": "uuid",
   "game_id": "uuid",
-  "game_type": "Chess",
+  "game_name": "Chess",
   "referrer": "homepage|search|direct",
   "session_id": "uuid"
 }
@@ -316,13 +316,6 @@ Examples:
   - queue.platform.transaction.purchase
 ```
 
-### Message Properties
-```
-Content-Type: application/json
-Delivery Mode: 2 (persistent)
-Priority: 0 (normal)
-```
-
 ---
 
 ## Data Validatie Regels
@@ -354,19 +347,11 @@ Bij optionele velden die ontbreken:
 ## Testing
 
 ### Test Event Generators
-Gebruik [`generate_test_events.py`](generate_test_events.py ) voor het genereren van realistische test data.
+Gebruik [`generate_events.py`](../generate_events.py) voor het genereren van realistische test data.
 
 ```bash
-python generate_test_events.py --sessions 50
+python ../generate_events.py --sessions 10
 ```
 
 ### Validation
 Events worden gevalideerd door Logstash filter pipeline voordat indexering.
-
----
-
-## Contact
-
-**Analytics Team**: [Jouw naam]  
-**Application Team**: [Namen van teamleden]  
-**Laatste sync**: [Datum van meeting]

@@ -102,7 +102,7 @@ def main():
     print("\n" + "=" * 50)
     print("✅ Setup completed successfully!")
     print("\n💡 Next steps:")
-    print("   1. Run: python generate_test_events.py")
+    print("   1. Run: python generate_events.py")
     print("   2. Open Kibana: http://localhost:5601")
     print("   3. Create index pattern: platform-events-*")
 
