@@ -32,6 +32,63 @@ BINDINGS = [
 EXCHANGE = "platform.events"
 VHOST = "/"
 
+def create_exchange():
+    """Create the exchange if it doesn't exist"""
+    vhost_encoded = "%2F" if VHOST == "/" else VHOST
+    url = f"{RABBITMQ_URL}/api/exchanges/{vhost_encoded}/{EXCHANGE}"
+    
+    payload = {
+        "type": "topic",
+        "durable": True,
+        "auto_delete": False
+    }
+    
+    try:
+        response = requests.put(
+            url,
+            json=payload,
+            auth=HTTPBasicAuth(USERNAME, PASSWORD)
+        )
+        
+        if response.status_code in [201, 204]:
+            print(f"✅ Exchange '{EXCHANGE}' ready")
+            return True
+        else:
+            print(f"❌ Failed to create exchange: {response.status_code}")
+            print(f"   Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error creating exchange: {e}")
+        return False
+
+def create_queue(queue_name):
+    """Create a queue if it doesn't exist"""
+    vhost_encoded = "%2F" if VHOST == "/" else VHOST
+    url = f"{RABBITMQ_URL}/api/queues/{vhost_encoded}/{queue_name}"
+    
+    payload = {
+        "durable": True,
+        "auto_delete": False
+    }
+    
+    try:
+        response = requests.put(
+            url,
+            json=payload,
+            auth=HTTPBasicAuth(USERNAME, PASSWORD)
+        )
+        
+        if response.status_code in [201, 204]:
+            return True
+        else:
+            print(f"❌ Failed to create queue {queue_name}: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error creating queue {queue_name}: {e}")
+        return False
+
 def create_binding(queue_name, routing_key):
     """Create a binding between exchange and queue"""
     # URL encode the vhost (/ becomes %2F)
@@ -100,6 +157,17 @@ if __name__ == "__main__":
     print("=" * 70)
     print("🔗 RABBITMQ QUEUE BINDINGS SETUP")
     print("=" * 70)
+    
+    # Create exchange first
+    print("\n🔧 Creating exchange...")
+    if not create_exchange():
+        print("❌ Failed to create exchange, aborting")
+        exit(1)
+    
+    # Create all queues
+    print("\n🔧 Creating queues...")
+    for binding in BINDINGS:
+        create_queue(binding["queue"])
     
     # List existing bindings
     list_bindings()

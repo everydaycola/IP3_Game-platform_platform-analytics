@@ -1,6 +1,15 @@
-ARG ELASTIC_VERSION
-FROM docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+FROM python:3.11-slim
 
-USER root
-RUN apt-get update && apt-get install -y jq curl && rm -rf /var/lib/apt/lists/*
-USER elasticsearch
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir requests
+
+# Copy setup scripts
+COPY setup/setup_elasticsearch.py .
+COPY setup/setup_rabbitmq_bindings.py .
+
+# Copy templates
+COPY elasticsearch/templates ./elasticsearch/templates
+
+CMD ["python", "setup_elasticsearch.py"]
