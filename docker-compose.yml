@@ -18,27 +18,14 @@ services:
     profiles:
       - setup
     build:
-      context: setup/
-      args:
-        ELASTIC_VERSION: ${ELASTIC_VERSION}
-    init: true
-    volumes:
-      - ./setup/entrypoint.sh:/entrypoint.sh:ro,Z
-      - ./setup/lib.sh:/lib.sh:ro,Z
-      - ./setup/roles:/roles:ro,Z
-    environment:
-      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
-      LOGSTASH_INTERNAL_PASSWORD: ${LOGSTASH_INTERNAL_PASSWORD:-}
-      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
-      METRICBEAT_INTERNAL_PASSWORD: ${METRICBEAT_INTERNAL_PASSWORD:-}
-      FILEBEAT_INTERNAL_PASSWORD: ${FILEBEAT_INTERNAL_PASSWORD:-}
-      HEARTBEAT_INTERNAL_PASSWORD: ${HEARTBEAT_INTERNAL_PASSWORD:-}
-      MONITORING_INTERNAL_PASSWORD: ${MONITORING_INTERNAL_PASSWORD:-}
-      BEATS_SYSTEM_PASSWORD: ${BEATS_SYSTEM_PASSWORD:-}
+      context: .
+      dockerfile: setup/Dockerfile
     networks:
       - elk
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
 
   elasticsearch:
     build:
@@ -61,9 +48,21 @@ services:
       # Use single node discovery in order to disable production mode and avoid bootstrap checks.
       # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
       discovery.type: single-node
+      # Disable SSL and auto-configuration
+      xpack.security.enabled: "true"
+      xpack.security.enrollment.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.security.autoconfiguration.enabled: "false"
     networks:
       - elk
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:changeme http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   logstash:
     build:

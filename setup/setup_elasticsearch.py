@@ -9,7 +9,7 @@ import json
 import time
 from requests.auth import HTTPBasicAuth
 
-ES_HOST = "http://localhost:9200"
+ES_HOST = "http://elasticsearch:9200"
 ES_USER = "elastic"
 ES_PASS = "changeme"
 
@@ -59,6 +59,72 @@ def upload_template():
         print(f"   Response: {response.text}")
         return False
 
+def setup_users():
+    """Setup user passwords for Kibana and Logstash"""
+    print("\n👤 Setting up user passwords...")
+    
+    # Set password for built-in kibana_system user
+    try:
+        response = requests.post(
+            f"{ES_HOST}/_security/user/kibana_system/_password",
+            auth=HTTPBasicAuth(ES_USER, ES_PASS),
+            headers={"Content-Type": "application/json"},
+            json={"password": "changeme"}
+        )
+        
+        if response.status_code == 200:
+            print(f"✅ Password set for kibana_system")
+        else:
+            print(f"⚠️  Could not set password for kibana_system: {response.status_code}")
+    except Exception as e:
+        print(f"⚠️  Error setting password for kibana_system: {e}")
+    
+    # Create a custom role for logstash with index creation privileges
+    try:
+        response = requests.post(
+            f"{ES_HOST}/_security/role/logstash_writer_role",
+            auth=HTTPBasicAuth(ES_USER, ES_PASS),
+            headers={"Content-Type": "application/json"},
+            json={
+                "cluster": ["manage_index_templates", "monitor"],
+                "indices": [
+                    {
+                        "names": ["platform-events-*"],
+                        "privileges": ["create_index", "write", "delete", "create", "index", "auto_configure"]
+                    }
+                ]
+            }
+        )
+        
+        if response.status_code in [200, 201]:
+            print(f"✅ Created custom logstash_writer_role")
+        else:
+            print(f"⚠️  Could not create role: {response.status_code} - {response.text[:200]}")
+    except Exception as e:
+        print(f"⚠️  Error creating role: {e}")
+    
+    # Create logstash_internal user with the custom role
+    try:
+        response = requests.post(
+            f"{ES_HOST}/_security/user/logstash_internal",
+            auth=HTTPBasicAuth(ES_USER, ES_PASS),
+            headers={"Content-Type": "application/json"},
+            json={
+                "password": "changeme",
+                "roles": ["logstash_writer_role"],
+                "full_name": "Internal Logstash User"
+            }
+        )
+        
+        if response.status_code in [200, 201]:
+            print(f"✅ Created user logstash_internal with logstash_writer_role")
+        else:
+            print(f"⚠️  Could not create logstash_internal: {response.status_code} - {response.text[:200]}")
+    except Exception as e:
+        print(f"⚠️  Error creating logstash_internal: {e}")
+    
+    return True
+
 def create_initial_index():
     """Create initial index with alias"""
     print("\n📊 Creating initial index...")
@@ -93,6 +159,9 @@ def main():
     if not wait_for_elasticsearch():
         exit(1)
     
+    if not setup_users():
+        exit(1)
+    
     if not upload_template():
         exit(1)
     
@@ -101,10 +170,7 @@ def main():
     
     print("\n" + "=" * 50)
     print("✅ Setup completed successfully!")
-    print("\n💡 Next steps:")
-    print("   1. Run: python generate_events.py")
-    print("   2. Open Kibana: http://localhost:5601")
-    print("   3. Create index pattern: platform-events-*")
+    print("=" * 50)
 
 if __name__ == "__main__":
     main()
