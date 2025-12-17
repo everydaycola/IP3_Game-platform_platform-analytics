@@ -20,15 +20,6 @@ headers = {
 
 auth = HTTPBasicAuth(ELASTIC_USER, ELASTIC_PASSWORD)
 
-def check_dashboard_exists():
-    """Check if the dashboard already exists"""
-    url = f"{KIBANA_URL}/api/saved_objects/dashboard/revenue-dashboard"
-    try:
-        response = requests.get(url, headers=headers, auth=auth)
-        return response.status_code == 200
-    except:
-        return False
-
 def get_data_view_id():
     """Get the ID of the platform-events data view"""
     url = f"{KIBANA_URL}/api/data_views"
@@ -195,11 +186,6 @@ def main():
     print("=" * 70)
     print("💰 CREATING REVENUE DASHBOARD IN KIBANA")
     print("=" * 70)
-    
-    # Check if dashboard already exists
-    if check_dashboard_exists():
-        print("\n✅ Dashboard 'revenue-dashboard' already exists. Skipping creation.")
-        return
     
     # Get data view ID
     data_view_id = get_data_view_id()

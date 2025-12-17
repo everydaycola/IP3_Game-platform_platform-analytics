@@ -4,6 +4,13 @@
 Write-Host "Starting platform-analytics stack..." -ForegroundColor Cyan
 Write-Host "============================================================"
 
+# Install Python requirements
+Write-Host "`nInstalling Python requirements..." -ForegroundColor Yellow
+pip install -r requirements.txt --quiet
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to install requirements (continuing anyway)" -ForegroundColor Yellow
+}
+
 # Start Elasticsearch first
 Write-Host "`nStarting Elasticsearch..." -ForegroundColor Yellow
 docker-compose up -d elasticsearch
@@ -65,15 +72,22 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Data view creation failed (continuing anyway)" -ForegroundColor Yellow
 }
 
+# Create revenue dashboard
+Write-Host "`nCreating revenue dashboard..." -ForegroundColor Yellow
+python setup/create_revenue_dashboard.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Dashboard creation failed (continuing anyway)" -ForegroundColor Yellow
+}
+
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "Platform Analytics is ready!" -ForegroundColor Green
 Write-Host "`nAccess points:" -ForegroundColor Cyan
 Write-Host "   - Kibana: http://localhost:5601"
 Write-Host "   - Elasticsearch: http://localhost:9200"
 Write-Host "   - RabbitMQ Management: http://localhost:15672"
+Write-Host "   - Dashboard: http://localhost:5601/app/dashboards#/view/revenue-dashboard"
 Write-Host "   - Credentials: elastic / changeme (admin / admin for RabbitMQ)"
-Write-Host "`nData view 'platform-events-*' is ready in Kibana!" -ForegroundColor Cyan
-Write-Host "You can now create your dashboards manually in Kibana." -ForegroundColor Cyan
+Write-Host "`nRevenue dashboard 'Opbrengsten Dashboard' is ready!" -ForegroundColor Cyan
 Write-Host "`nGenerate test data with:" -ForegroundColor Cyan
 Write-Host '   echo "1" | python .\scripts\generate_revenue_data.py'
 Write-Host "============================================================" -ForegroundColor Cyan
