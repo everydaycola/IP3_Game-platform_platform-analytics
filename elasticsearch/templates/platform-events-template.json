@@ -27,6 +27,9 @@
         "user_id": {
           "type": "keyword"
         },
+        "player_id": {
+          "type": "keyword"
+        },
         "username": {
           "type": "keyword",
           "fields": {
