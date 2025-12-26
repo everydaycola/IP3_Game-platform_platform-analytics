@@ -9,7 +9,7 @@ import json
 import time
 from requests.auth import HTTPBasicAuth
 
-ES_HOST = "http://elasticsearch:9200"
+ES_HOST = "http://localhost:9200"
 ES_USER = "elastic"
 ES_PASS = "changeme"
 

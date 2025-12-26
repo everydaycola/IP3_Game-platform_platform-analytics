@@ -24,39 +24,39 @@ from collections import defaultdict
 class RetentionDataGenerator:
     """Generates realistic user retention and engagement events"""
     
-    # User behavior profiles
+    # User behavior profiles (MORE REALISTIC)
     USER_PROFILES = {
         'power_user': {
-            'weight': 0.15,  # 15% of users
-            'd1_retention': 0.90,
-            'd7_retention': 0.85,
-            'd30_retention': 0.75,
-            'sessions_per_day': (3, 8),
-            'session_duration': (1800, 7200)  # 30min - 2h
+            'weight': 0.10,  # 10% of users (most apps have ~5-15%)
+            'd1_retention': 0.75,
+            'd7_retention': 0.60,
+            'd30_retention': 0.45,
+            'sessions_per_day': (2, 5),
+            'session_duration': (480, 1200)  # 8min - 20min
         },
         'regular_user': {
-            'weight': 0.35,  # 35% of users
-            'd1_retention': 0.60,
-            'd7_retention': 0.40,
-            'd30_retention': 0.25,
-            'sessions_per_day': (1, 3),
-            'session_duration': (900, 3600)  # 15min - 1h
+            'weight': 0.25,  # 25% of users
+            'd1_retention': 0.45,
+            'd7_retention': 0.25,
+            'd30_retention': 0.12,
+            'sessions_per_day': (1, 2),
+            'session_duration': (480, 1200)  # 8min - 20min
         },
         'casual_user': {
-            'weight': 0.30,  # 30% of users
-            'd1_retention': 0.30,
-            'd7_retention': 0.15,
-            'd30_retention': 0.05,
-            'sessions_per_day': (1, 2),
-            'session_duration': (300, 1800)  # 5min - 30min
+            'weight': 0.35,  # 35% of users
+            'd1_retention': 0.20,
+            'd7_retention': 0.08,
+            'd30_retention': 0.02,
+            'sessions_per_day': (1, 1),
+            'session_duration': (480, 1200)  # 8min - 20min
         },
         'churned_user': {
-            'weight': 0.20,  # 20% of users
-            'd1_retention': 0.10,
-            'd7_retention': 0.02,
+            'weight': 0.30,  # 30% of users (high churn is normal)
+            'd1_retention': 0.05,
+            'd7_retention': 0.00,
             'd30_retention': 0.00,
             'sessions_per_day': (1, 1),
-            'session_duration': (180, 900)  # 3min - 15min
+            'session_duration': (480, 1200)  # 8min - 20min
         }
     }
     
@@ -155,19 +155,34 @@ class RetentionDataGenerator:
             retention_rate = config['d30_retention'] * (0.95 ** (days_since_first - 30))
             return random.random() < retention_rate
     
-    def generate_session_event(self, player_id: str, timestamp: datetime, game: Dict = None) -> Dict:
-        """Generate a session_started event"""
+    def generate_session_event(self, player_id: str, timestamp: datetime, game: Dict = None, profile: Dict = None) -> Dict:
+        """Generate a session_started event with optional duration.
+
+        If a profile config with a 'session_duration' range is provided, we
+        materialize a synthetic session_duration_seconds value so that the
+        dashboard can compute average session duration per player cohort.
+        """
         if game is None:
             game = random.choice(self.GAMES)
-        
-        return {
+
+        duration_seconds = None
+        if profile and "session_duration" in profile:
+            low, high = profile["session_duration"]
+            duration_seconds = random.randint(low, high)
+
+        event = {
             "event_type": "session_started",
             "@timestamp": timestamp.isoformat().replace('+00:00', 'Z'),
             "player_id": player_id,
             "session_id": str(uuid.uuid4()),
             "game_id": game["id"],
-            "game_name": game["name"]
+            "game_name": game["name"],
         }
+
+        if duration_seconds is not None:
+            event["session_duration_seconds"] = duration_seconds
+
+        return event
     
     def generate_historical_retention_data(self, days: int = 60, new_users_per_day: int = 20):
         """
@@ -208,17 +223,22 @@ class RetentionDataGenerator:
             # Add new users (onboarding)
             for _ in range(new_users_today):
                 user_id = f"player_{len(users) + 1:05d}"
-                profile = self.assign_user_profile()
-                
+                profile_key = self.assign_user_profile()
+                profile = self.USER_PROFILES[profile_key]
+
                 users[user_id] = {
-                    'profile': profile,
+                    'profile': profile_key,
                     'first_session': current_date,
                     'last_session': current_date
                 }
                 
                 # New user first session (usually during peak hours)
-                session_time = self.get_random_session_time(current_date, is_first_session=True)
-                event = self.generate_session_event(user_id, session_time)
+                session_time = self.get_random_session_time(
+                    current_date,
+                    is_first_session=True,
+                    end_of_range=now
+                )
+                event = self.generate_session_event(user_id, session_time, profile=profile)
                 self.send_event(event)
                 
                 events_sent += 1
@@ -239,8 +259,12 @@ class RetentionDataGenerator:
                     
                     # Generate multiple sessions for active users
                     for _ in range(sessions_count):
-                        session_time = self.get_random_session_time(current_date)
-                        event = self.generate_session_event(user_id, session_time)
+                        session_time = self.get_random_session_time(
+                            current_date,
+                            is_first_session=False,
+                            end_of_range=now
+                        )
+                        event = self.generate_session_event(user_id, session_time, profile=profile_config)
                         self.send_event(event)
                         
                         events_sent += 1
@@ -280,8 +304,31 @@ class RetentionDataGenerator:
         
         return events_sent
     
-    def get_random_session_time(self, date: datetime, is_first_session: bool = False) -> datetime:
-        """Generate a realistic session time with peak hours"""
+    def get_random_session_time(self, date: datetime, is_first_session: bool = False,
+                                 end_of_range: datetime = None) -> datetime:
+        """Generate a realistic session time with peak hours.
+
+        If end_of_range is provided and "date" is the same calendar day as
+        end_of_range (typically "now"), generated times will be constrained
+        to be **before or equal** to end_of_range. This ensures that when you
+        generate data including today, the "Today" filter in Kibana can
+        immediately see events (no future timestamps).
+        """
+
+        # Special handling for the last simulated day (usually today):
+        # pick a random instant between start of day and end_of_range.
+        if end_of_range is not None and date.date() == end_of_range.date():
+            start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+            total_seconds = int((end_of_range - start_of_day).total_seconds())
+            if total_seconds <= 0:
+                # Fallback: if end_of_range is before start_of_day for some
+                # reason, just return end_of_range itself.
+                return end_of_range.replace(microsecond=0)
+
+            offset = random.randint(0, max(total_seconds - 1, 0))
+            return start_of_day + timedelta(seconds=offset)
+
+        # Historical days: keep the original peak-hour distributions.
         if is_first_session:
             # New users typically join during peak hours (18:00-22:00)
             hour = random.choices(
@@ -294,7 +341,7 @@ class RetentionDataGenerator:
                 range(24),
                 weights=[1,1,1,1,1,2,3,5,7,10,9,7,6,5,4,5,8,12,15,16,14,10,6,3]
             )[0]
-        
+
         return date.replace(
             hour=hour,
             minute=random.randint(0, 59),
@@ -361,26 +408,26 @@ def main():
     
     try:
         print("\n📋 Choose generation mode:")
-        print("  1. Small dataset (30 days, 15 users/day)")
-        print("  2. Medium dataset (60 days, 20 users/day) - RECOMMENDED")
-        print("  3. Large dataset (90 days, 25 users/day)")
+        print("  1. Small dataset (30 days, 25 users/day)")
+        print("  2. Medium dataset (60 days, 30 users/day) - RECOMMENDED")
+        print("  3. Large dataset (90 days, 40 users/day)")
         print("  4. Custom (specify days and users per day)")
         
         choice = input("\nYour choice (1-4): ").strip() or "2"
         
         if choice == "1":
-            generator.generate_historical_retention_data(days=30, new_users_per_day=15)
+            generator.generate_historical_retention_data(days=30, new_users_per_day=25)
         elif choice == "2":
-            generator.generate_historical_retention_data(days=60, new_users_per_day=20)
+            generator.generate_historical_retention_data(days=60, new_users_per_day=30)
         elif choice == "3":
-            generator.generate_historical_retention_data(days=90, new_users_per_day=25)
+            generator.generate_historical_retention_data(days=90, new_users_per_day=40)
         elif choice == "4":
             days = int(input("Number of days: ") or "60")
-            users_per_day = int(input("New users per day: ") or "20")
+            users_per_day = int(input("New users per day: ") or "30")
             generator.generate_historical_retention_data(days=days, new_users_per_day=users_per_day)
         else:
             print("❌ Invalid choice, using default (option 2)")
-            generator.generate_historical_retention_data(days=60, new_users_per_day=20)
+            generator.generate_historical_retention_data(days=60, new_users_per_day=30)
         
         print("\n" + "=" * 70)
         print("✅ Data generation complete!")
