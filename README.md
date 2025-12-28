@@ -1,5 +1,19 @@
 # Platform Analytics - Quick Start Guide
 
+## First Time Setup
+
+Before starting, create your environment configuration:
+
+```powershell
+# Copy the example environment file
+Copy-Item .env.example .env
+
+# Edit .env and change the default passwords!
+notepad .env
+```
+
+**⚠️ IMPORTANT:** Never commit the `.env` file to Git - it contains secrets!
+
 ## Automatic Setup (Recommended)
 
 After running `docker-compose down -v`, simply use the automated startup script:
@@ -100,4 +114,48 @@ docker-compose down
 ```powershell
 docker-compose down -v
 .\bin\start.ps1
+```
+
+## CI/CD Pipeline
+
+This project includes a complete GitLab CI/CD pipeline with automated testing, building, and deployment.
+
+### Quick Setup
+
+```powershell
+.\bin\setup-cicd.ps1
+```
+
+### Features
+
+- 🔍 **Automated Testing**: Python linting, formatting checks, and unit tests
+- 🐳 **Docker Builds**: Automatic building and pushing to GitLab Container Registry
+- 🚀 **Multi-Environment Deployment**:
+  - Development (auto on `develop` branch)
+  - Staging (auto on `main` branch)
+  - Production (manual approval required)
+- 📦 **Container Registry**: All images stored in GitLab Container Registry
+- 🔒 **Security**: Secrets management via GitLab CI/CD Variables
+
+### Pipeline Stages
+
+1. **Lint** → Code quality checks
+2. **Test** → Unit tests with coverage
+3. **Build** → Build and push Docker images
+4. **Deploy** → Automated deployment to environments
+
+### Documentation
+
+See [docs/CICD_SETUP.md](docs/CICD_SETUP.md) for detailed CI/CD setup instructions.
+
+### Container Registry Images
+
+```bash
+# Login
+docker login registry.gitlab.com
+
+# Pull images
+docker pull registry.gitlab.com/your-username/platform-analytics/elasticsearch:latest
+docker pull registry.gitlab.com/your-username/platform-analytics/kibana:latest
+docker pull registry.gitlab.com/your-username/platform-analytics/logstash:latest
 ```
