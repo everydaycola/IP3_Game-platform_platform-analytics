@@ -1,0 +1,107 @@
+# Docker Compose voor GitLab CI/CD Deployment
+# Gebruikt images van GitLab Container Registry
+
+services:
+  setup:
+    profiles:
+      - setup
+    image: ${CI_REGISTRY_IMAGE}/setup:${IMAGE_TAG:-latest}
+    networks:
+      - elk
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+
+  elasticsearch:
+    image: ${CI_REGISTRY_IMAGE}/elasticsearch:${IMAGE_TAG:-latest}
+    volumes:
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z
+      - elasticsearch:/usr/share/elasticsearch/data:Z
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      node.name: elasticsearch
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-changeme}
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.enrollment.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.security.autoconfiguration.enabled: "false"
+    networks:
+      - elk
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:changeme http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  logstash:
+    image: ${CI_REGISTRY_IMAGE}/logstash:${IMAGE_TAG:-latest}
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,Z
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro,Z
+    ports:
+      - 5044:5044
+      - 50000:50000/tcp
+      - 50000:50000/udp
+      - 9600:9600
+    environment:
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+      LOGSTASH_INTERNAL_PASSWORD: ${LOGSTASH_INTERNAL_PASSWORD:-changeme}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin}
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+      - rabbitmq
+    restart: unless-stopped
+
+  kibana:
+    image: ${CI_REGISTRY_IMAGE}/kibana:${IMAGE_TAG:-latest}
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,Z
+    ports:
+      - 5601:5601
+    environment:
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-changeme}
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - elk
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  elasticsearch:
+  rabbitmq_data:

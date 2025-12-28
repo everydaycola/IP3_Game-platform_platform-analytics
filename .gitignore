@@ -32,7 +32,9 @@ logs/
 # Docker volumes
 *.pid
 
-# Sensitive files
+# Sensitive files - Environment variables with secrets
+.env
 .env.local
 .env.production
+.env.*.local
 secrets/
