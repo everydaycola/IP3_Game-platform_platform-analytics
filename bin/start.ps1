@@ -4,6 +4,9 @@
 Write-Host "Starting platform-analytics stack..." -ForegroundColor Cyan
 Write-Host "============================================================"
 
+Write-Host "Resetting stack (down -v) to start from zero..." -ForegroundColor Yellow
+docker-compose down -v --remove-orphans
+
 # Install Python requirements
 Write-Host "`nInstalling Python requirements..." -ForegroundColor Yellow
 pip install -r requirements.txt --quiet
@@ -78,6 +81,14 @@ python setup/create_revenue_dashboard.py
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Dashboard creation failed (continuing anyway)" -ForegroundColor Yellow
 }
+
+Write-Host ""
+Write-Host "Deploying User Engagement & Retention dashboard (transforms + pipeline + ndjson import)..." -ForegroundColor Cyan
+
+# Run the deploy script from repo root (setup/ is one level deep)
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+& (Join-Path $repoRoot "bin\deploy_prod.ps1")
+
 
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "Platform Analytics is ready!" -ForegroundColor Green

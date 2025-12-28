@@ -1,0 +1,7 @@
+{
+  "match": {
+    "indices": "player_first_seen",
+    "match_field": "player_id",
+    "enrich_fields": ["cohort_date"]
+  }
+}

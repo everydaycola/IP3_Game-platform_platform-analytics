@@ -1,0 +1,27 @@
+{
+  "source": {
+    "index": "platform-events-*"
+  },
+  "dest": {
+    "index": "player_first_seen"
+  },
+  "pivot": {
+    "group_by": {
+      "player_id": { "terms": { "field": "player_id.keyword" } }
+    },
+    "aggregations": {
+      "cohort_date": {
+        "min": {
+          "field": "@timestamp"
+        }
+      }
+    }
+  },
+  "description": "First seen date per player for retention cohorts",
+  "sync": {
+    "time": {
+      "field": "@timestamp",
+      "delay": "60s"
+    }
+  }
+}

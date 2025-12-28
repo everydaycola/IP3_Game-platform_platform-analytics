@@ -4,6 +4,9 @@ set -e
 echo "🚀 Starting platform-analytics stack..."
 echo "=" * 60
 
+echo "🧹 Resetting stack (down -v) to start from zero..."
+docker-compose down -v --remove-orphans || true
+
 # Install Python requirements
 echo "📦 Installing Python requirements..."
 pip3 install -r requirements.txt --quiet || echo "⚠️ Failed to install requirements (continuing anyway)"
@@ -51,6 +54,9 @@ python3 setup/create_data_view.py || echo "⚠️ Data view creation failed (con
 # Create revenue dashboard
 echo "💰 Creating revenue dashboard..."
 python3 setup/create_revenue_dashboard.py || echo "⚠️ Dashboard creation failed (continuing anyway)"
+
+echo "📈 Deploying User Engagement & Retention assets (transforms + pipeline + ndjson import)..."
+bash ./bin/deploy_prod.sh || echo "⚠️ Engagement & Retention deploy failed (check logs)"
 
 echo ""
 echo "=" * 60

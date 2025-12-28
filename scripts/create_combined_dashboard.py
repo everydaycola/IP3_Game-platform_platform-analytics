@@ -207,7 +207,7 @@ def create_visualization(title, vis_type, data_view_id, vis_state, description="
         return None
 
 
-def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_global_time=False, formula_expression=None):
+def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_global_time=False, formula_expression=None, value_format=None, decimals=1):
     """Create a Lens metric visualization (lnsMetric).
 
     When formula_expression is provided, a Lens formula metric is created
@@ -219,6 +219,11 @@ def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_
 
     url = f"{KIBANA_URL}/api/saved_objects/lens/{lens_id}"
 
+    # --- formatter (Lens) ---
+    fmt = None
+    if value_format == "percent":
+        fmt = {"id": "percent", "params": {"decimals": decimals}}
+
     # Build metric column definition
     if formula_expression:
         metric_column = {
@@ -229,7 +234,8 @@ def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_
             "scale": "ratio",
             "params": {
                 "formula": formula_expression,
-                "isFormulaBroken": False
+                "isFormulaBroken": False,
+                **({"format": fmt} if fmt else {})
             }
         }
     else:
@@ -239,7 +245,10 @@ def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_
             "operationType": operation_type,
             "sourceField": field,
             "isBucketed": False,
-            "scale": "ratio"
+            "scale": "ratio",
+            "params": {
+                **({"format": fmt} if fmt else {})
+            }
         }
 
     layer_state = {
@@ -320,6 +329,8 @@ def create_lens_xy(
     x_label=None,
     y_label=None,
     x_interval=None,
+    value_format=None,
+    decimals=1
 ):
     """Create a Lens XY visualization (line/bar) with one metric and one bucket.
 
@@ -332,6 +343,10 @@ def create_lens_xy(
     y_col_id = str(uuid.uuid4())
 
     url = f"{KIBANA_URL}/api/saved_objects/lens/{lens_id}"
+
+    fmt = None
+    if value_format == "percent":
+        fmt = {"id": "percent", "params": {"decimals": decimals}}
 
     if is_date_x:
         x_column = {
@@ -387,7 +402,10 @@ def create_lens_xy(
             "operationType": agg_type,
             "sourceField": y_field,
             "isBucketed": False,
-            "scale": "ratio"
+            "scale": "ratio",
+            "params": {
+                **({"format": fmt} if fmt else {})
+            }
         }
 
     # Ensure Lens actually uses our custom metric label in the UI
@@ -714,9 +732,12 @@ def create_dashboard(title, visualization_ids):
         # Retention Header (legacy markdown visualization)
         {"vis_id": visualization_ids.get("ret_header"), "x": 0, "y": 43, "w": 48, "h": 6, "name": "ret_header", "so_type": "visualization"},
         # D1/D7/D30 (Lens metrics)
-        {"vis_id": visualization_ids.get("d1"), "x": 0,  "y": 49, "w": 16, "h": 8, "name": "d1", "so_type": "lens"},
-        {"vis_id": visualization_ids.get("d7"), "x": 16, "y": 49, "w": 16, "h": 8, "name": "d7", "so_type": "lens"},
-        {"vis_id": visualization_ids.get("d30"), "x": 32, "y": 49, "w": 16, "h": 8, "name": "d30", "so_type": "lens"},
+        {"vis_id": visualization_ids.get("d1"), "x": 0, "y": 49, "w": 16, "h": 8, "name": "d1", "so_type": "lens",
+         "timeRange": {"from": "now-2d/d", "to": "now-1d/d"}},
+        {"vis_id": visualization_ids.get("d7"), "x": 16, "y": 49, "w": 16, "h": 8, "name": "d7", "so_type": "lens",
+         "timeRange": {"from": "now-8d/d", "to": "now-7d/d"}},
+        {"vis_id": visualization_ids.get("d30"), "x": 32, "y": 49, "w": 16, "h": 8, "name": "d30", "so_type": "lens",
+         "timeRange": {"from": "now-31d/d", "to": "now-30d/d"}},
         # Retention Trend (Lens line)
         {"vis_id": visualization_ids.get("ret_trend"), "x": 0, "y": 57, "w": 48, "h": 12, "name": "ret_trend", "so_type": "lens"},
     ]
@@ -824,7 +845,7 @@ def main():
     wau_view = get_or_create_data_view("WAU Metrics", "retention-metrics-weekly-active-users", "week")
     mau_view = get_or_create_data_view("MAU Metrics", "retention-metrics-monthly-active-users", "month")
     hourly_view = get_or_create_data_view("Hourly Activity", "retention-metrics-hourly-activity", None)
-    retention_cohort_view = get_or_create_data_view("Retention Cohort", "retention-metrics-cohort", "cohort_date")
+    retention_cohort_view = get_or_create_data_view("Retention Cohort", "retention_cohort", "cohort_date")
     
     if not all([events_view, sessions_view, dau_view, wau_view, mau_view, hourly_view, retention_cohort_view]):
         print("\n❌ Failed to create all data views")
@@ -838,8 +859,9 @@ def main():
     print("=" * 80)
     
     visualization_ids["eng_header"] = create_markdown(
-        "# 📊 USER ENGAGEMENT\n**How intensively is the platform being used?**",
-        "Engagement Header"
+        "# 📊 USER ENGAGEMENT: **How intensively is the platform being used?**",
+        "Engagement Header",
+
     )
     
     print("\n1. Activity KPIs (follow dashboard time filter)")
@@ -927,12 +949,61 @@ def main():
     )
     
     print("\n4. Retention KPIs")
-    visualization_ids["d1"] = create_lens_metric("D1 Retention", retention_cohort_view, "d1_retention", "average")
-    visualization_ids["d7"] = create_lens_metric("D7 Retention", retention_cohort_view, "d7_retention", "average")
-    visualization_ids["d30"] = create_lens_metric("D30 Retention", retention_cohort_view, "d30_retention", "average")
-    
+    # D1/D7/D30 KPIs: Use Value/Last value and strict time range for latest complete cohort
+    # D1: now-2d/d to now-1d/d, D7: now-8d/d to now-7d/d, D30: now-31d/d to now-30d/d
+    visualization_ids["d1"] = create_lens_metric("D1 Retention (Latest Complete Cohort)", retention_cohort_view,
+                                                 "d1_retention", "average",value_format="percent",decimals=1)
+    visualization_ids["d7"] = create_lens_metric("D7 Retention (Latest Complete Cohort)", retention_cohort_view,
+                                                 "d7_retention", "average",value_format="percent",decimals=1)
+    visualization_ids["d30"] = create_lens_metric("D30 Retention (Latest Complete Cohort)", retention_cohort_view,
+                                                  "d30_retention", "average",value_format="percent",decimals=1)
+
     print("\n5. Retention Trends")
-    visualization_ids["ret_trend"] = create_lens_xy("D7 Retention Trend", retention_cohort_view, "cohort_date", "d7_retention", "average", is_date_x=True, series_type="line")
+    visualization_ids["ret_trend"] = create_lens_xy(
+        "D7 Retention Trend",
+        retention_cohort_view,
+        "cohort_date",
+        "d7_retention",
+        "average",
+        True,
+        "line",
+        "cohort_date < now-7d/d",
+        "Cohort Date",
+        "D7 Retention",
+        "1d",
+        value_format="percent",
+        decimals=1
+    )
+    # Cohort Size Trend
+    visualization_ids["cohort_size_trend"] = create_lens_xy(
+        "Cohort Size Trend",
+        retention_cohort_view,
+        "cohort_date",
+        "cohort_size.players",
+        "average",
+        True,
+        "line",
+        "",
+        "Cohort Date",
+        "Cohort Size",
+        "1d"
+    )
+    # Cohort Heatmap/Table (D1, D7, D30)
+    # This is a placeholder; actual implementation may require a custom Lens table or heatmap
+    # For now, just create a D1 retention table as an example
+    visualization_ids["cohort_heatmap"] = create_lens_xy(
+        "Cohort D1 Retention Table",
+        retention_cohort_view,
+        "cohort_date",
+        "d1_retention",
+        "average",
+        True,
+        "bar",
+        "",
+        "Cohort Date",
+        "D1 Retention",
+        "1d"
+    )
     
     # Create dashboard
     print("\n🎨 Creating dashboard...")
