@@ -27,8 +27,8 @@ stages:
     - docker:24.0.7-dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  tags:
-    - docker
+  # tags:
+  #   - docker  # Commented out to use instance runners
 
 # ===========================
 # LINT STAGE
