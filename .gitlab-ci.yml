@@ -235,7 +235,7 @@ deploy:staging:
     - docker-compose -f docker-compose.gitlab.yml down || true
     - docker-compose -f docker-compose.gitlab.yml pull
     - docker-compose -f docker-compose.gitlab.yml up -d elasticsearch
-    - sleep 90
+    - sleep 120
     - docker-compose -f docker-compose.gitlab.yml --profile=setup run --rm setup
     - docker-compose -f docker-compose.gitlab.yml up -d
     - sleep 30
@@ -272,7 +272,7 @@ deploy:production:
     - docker-compose -f docker-compose.gitlab.yml down || true
     - docker-compose -f docker-compose.gitlab.yml pull
     - docker-compose -f docker-compose.gitlab.yml up -d elasticsearch
-    - sleep 90
+    - sleep 120
     - docker-compose -f docker-compose.gitlab.yml --profile=setup run --rm setup
     - docker-compose -f docker-compose.gitlab.yml up -d
     

@@ -16,7 +16,7 @@ ES_PASS = "changeme"
 def wait_for_elasticsearch():
     """Wait for Elasticsearch to be ready"""
     print("⏳ Waiting for Elasticsearch to be ready...")
-    max_attempts = 30
+    max_attempts = 60
     for i in range(max_attempts):
         try:
             response = requests.get(f"{ES_HOST}/_cluster/health", 
@@ -25,13 +25,13 @@ def wait_for_elasticsearch():
             if response.status_code == 200:
                 print("✅ Elasticsearch is ready!")
                 return True
-        except:
+        except Exception as e:
             pass
         time.sleep(2)
-        if (i + 1) % 5 == 0:
+        if (i + 1) % 10 == 0:
             print(f"   Still waiting... ({i + 1}/{max_attempts})")
     
-    print("❌ Elasticsearch not ready after 60 seconds")
+    print("❌ Elasticsearch not ready after 120 seconds")
     return False
 
 def upload_template():
