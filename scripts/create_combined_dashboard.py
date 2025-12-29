@@ -732,7 +732,7 @@ def create_dashboard(title, visualization_ids):
         # Hourly (Lens bar chart, last 24 hours)
         {"vis_id": visualization_ids.get("hourly"), "x": 0, "y": 33, "w": 48, "h": 12, "name": "hourly", "so_type": "lens", "timeRange": {"from": "now-24h", "to": "now"}},
         # Retention Header (legacy markdown visualization)
-        {"vis_id": visualization_ids.get("ret_header"), "x": 0, "y": 45, "w": 48, "h": 10, "name": "ret_header", "so_type": "visualization"},
+        {"vis_id": visualization_ids.get("ret_header"), "x": 0, "y": 45, "w": 48, "h": 11, "name": "ret_header", "so_type": "visualization"},
         # D1/D7/D30 (Lens metrics)
         {"vis_id": visualization_ids.get("d1"), "x": 0, "y": 53, "w": 16, "h": 8, "name": "d1", "so_type": "lens",
          "timeRange": {"from": "now-2d/d", "to": "now-1d/d"}},
