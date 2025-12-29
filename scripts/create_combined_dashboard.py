@@ -717,31 +717,31 @@ def create_dashboard(title, visualization_ids):
     # Define layout; KPIs follow the dashboard time filter unless overridden
     layout = [
         # Engagement Header (legacy markdown visualization)
-        {"vis_id": visualization_ids.get("eng_header"), "x": 0, "y": 0, "w": 48, "h": 3, "name": "eng_header", "so_type": "visualization"},
+        {"vis_id": visualization_ids.get("eng_header"), "x": 0, "y": 0, "w": 48, "h": 5, "name": "eng_header", "so_type": "visualization"},
         # Row 1: DAU/WAU/MAU KPIs
-        {"vis_id": visualization_ids.get("dau"), "x": 0,  "y": 3,  "w": 16, "h": 8, "name": "dau", "so_type": "lens", "timeRange": {"from": "now/d", "to": "now"}},
-        {"vis_id": visualization_ids.get("wau"), "x": 16, "y": 3,  "w": 16, "h": 8, "name": "wau", "so_type": "lens", "timeRange": {"from": "now-7d", "to": "now"}},
-        {"vis_id": visualization_ids.get("mau"), "x": 32, "y": 3,  "w": 16, "h": 8, "name": "mau", "so_type": "lens", "timeRange": {"from": "now-30d", "to": "now"}},
+        {"vis_id": visualization_ids.get("dau"), "x": 0,  "y": 5,  "w": 16, "h": 8, "name": "dau", "so_type": "lens", "timeRange": {"from": "now/d", "to": "now"}},
+        {"vis_id": visualization_ids.get("wau"), "x": 16, "y": 5,  "w": 16, "h": 8, "name": "wau", "so_type": "lens", "timeRange": {"from": "now-7d", "to": "now"}},
+        {"vis_id": visualization_ids.get("mau"), "x": 32, "y": 5,  "w": 16, "h": 8, "name": "mau", "so_type": "lens", "timeRange": {"from": "now-30d", "to": "now"}},
         # Row 2: Additional engagement KPIs
-        {"vis_id": visualization_ids.get("avg_session"), "x": 0,  "y": 11, "w": 24, "h": 8, "name": "avg_session", "so_type": "lens"},
-        {"vis_id": visualization_ids.get("tracked_users"), "x": 24, "y": 11, "w": 24, "h": 8, "name": "tracked_users", "so_type": "lens"},
+        {"vis_id": visualization_ids.get("avg_session"), "x": 0,  "y": 13, "w": 24, "h": 8, "name": "avg_session", "so_type": "lens"},
+        {"vis_id": visualization_ids.get("tracked_users"), "x": 24, "y": 13, "w": 24, "h": 8, "name": "tracked_users", "so_type": "lens"},
         # DAU Trend (Lens line)
-        {"vis_id": visualization_ids.get("dau_trend"), "x": 0, "y": 19, "w": 24, "h": 12, "name": "dau_trend", "so_type": "lens"},
+        {"vis_id": visualization_ids.get("dau_trend"), "x": 0, "y": 21, "w": 24, "h": 12, "name": "dau_trend", "so_type": "lens"},
         # Sessions (Lens line)
-        {"vis_id": visualization_ids.get("sessions"), "x": 24, "y": 19, "w": 24, "h": 12, "name": "sessions", "so_type": "lens"},
+        {"vis_id": visualization_ids.get("sessions"), "x": 24, "y": 21, "w": 24, "h": 12, "name": "sessions", "so_type": "lens"},
         # Hourly (Lens bar chart, last 24 hours)
-        {"vis_id": visualization_ids.get("hourly"), "x": 0, "y": 31, "w": 48, "h": 12, "name": "hourly", "so_type": "lens", "timeRange": {"from": "now-24h", "to": "now"}},
+        {"vis_id": visualization_ids.get("hourly"), "x": 0, "y": 33, "w": 48, "h": 12, "name": "hourly", "so_type": "lens", "timeRange": {"from": "now-24h", "to": "now"}},
         # Retention Header (legacy markdown visualization)
-        {"vis_id": visualization_ids.get("ret_header"), "x": 0, "y": 43, "w": 48, "h": 6, "name": "ret_header", "so_type": "visualization"},
+        {"vis_id": visualization_ids.get("ret_header"), "x": 0, "y": 45, "w": 48, "h": 10, "name": "ret_header", "so_type": "visualization"},
         # D1/D7/D30 (Lens metrics)
-        {"vis_id": visualization_ids.get("d1"), "x": 0, "y": 49, "w": 16, "h": 8, "name": "d1", "so_type": "lens",
+        {"vis_id": visualization_ids.get("d1"), "x": 0, "y": 53, "w": 16, "h": 8, "name": "d1", "so_type": "lens",
          "timeRange": {"from": "now-2d/d", "to": "now-1d/d"}},
-        {"vis_id": visualization_ids.get("d7"), "x": 16, "y": 49, "w": 16, "h": 8, "name": "d7", "so_type": "lens",
+        {"vis_id": visualization_ids.get("d7"), "x": 16, "y": 53, "w": 16, "h": 8, "name": "d7", "so_type": "lens",
          "timeRange": {"from": "now-8d/d", "to": "now-7d/d"}},
-        {"vis_id": visualization_ids.get("d30"), "x": 32, "y": 49, "w": 16, "h": 8, "name": "d30", "so_type": "lens",
+        {"vis_id": visualization_ids.get("d30"), "x": 32, "y": 53, "w": 16, "h": 8, "name": "d30", "so_type": "lens",
          "timeRange": {"from": "now-31d/d", "to": "now-30d/d"}},
         # Retention Trend (Lens line)
-        {"vis_id": visualization_ids.get("ret_trend"), "x": 0, "y": 57, "w": 48, "h": 12, "name": "ret_trend", "so_type": "lens"},
+        {"vis_id": visualization_ids.get("ret_trend"), "x": 0, "y": 61, "w": 48, "h": 12, "name": "ret_trend", "so_type": "lens"},
     ]
 
     # Remove panel-level timeRange for tracked_users panel and set all-time override
@@ -862,8 +862,7 @@ def main():
     
     visualization_ids["eng_header"] = create_markdown(
         "# 📊 USER ENGAGEMENT: **How intensively is the platform being used?**",
-        "Engagement Header",
-
+        "Engagement Header"
     )
     
     print("\n1. Activity KPIs (follow dashboard time filter)")
