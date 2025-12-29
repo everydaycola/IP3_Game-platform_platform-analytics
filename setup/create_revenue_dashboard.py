@@ -6,12 +6,13 @@ Automatically creates all visualizations and dashboard for revenue analytics
 
 import requests
 import json
+import os
 from requests.auth import HTTPBasicAuth
 import time
 
-KIBANA_URL = "http://localhost:5601"
-ELASTIC_USER = "elastic"
-ELASTIC_PASSWORD = "changeme"
+KIBANA_URL = os.getenv("KIBANA_HOST", "http://localhost:5601")
+ELASTIC_USER = os.getenv("KIBANA_USER", "elastic")
+ELASTIC_PASSWORD = os.getenv("KIBANA_PASSWORD", "changeme")
 
 headers = {
     "kbn-xsrf": "true",

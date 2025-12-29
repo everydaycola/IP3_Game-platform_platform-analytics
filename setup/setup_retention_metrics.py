@@ -14,11 +14,12 @@ Adds missing metrics per ISM requirements:
 import requests
 import json
 import time
+import os
 from requests.auth import HTTPBasicAuth
 
-ES_HOST = "http://localhost:9200"
-ES_USER = "elastic"
-ES_PASS = "changeme"
+ES_HOST = os.getenv("ELASTICSEARCH_HOST", "http://localhost:9200")
+ES_USER = os.getenv("ELASTICSEARCH_USER", "elastic")
+ES_PASS = os.getenv("ELASTICSEARCH_PASSWORD", "changeme")
 
 auth = HTTPBasicAuth(ES_USER, ES_PASS)
 headers = {"Content-Type": "application/json"}

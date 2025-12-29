@@ -7,10 +7,11 @@ import requests
 import time
 import json
 import uuid
+import os
 
-KIBANA_URL = "http://localhost:5601"
-USERNAME = "elastic"
-PASSWORD = "changeme"
+KIBANA_URL = os.getenv("KIBANA_HOST", "http://localhost:5601")
+USERNAME = os.getenv("KIBANA_USER", "elastic")
+PASSWORD = os.getenv("KIBANA_PASSWORD", "changeme")
 
 def wait_for_kibana():
     """Wait for Kibana to be ready"""

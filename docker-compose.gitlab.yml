@@ -6,6 +6,13 @@ services:
     profiles:
       - setup
     image: ${CI_REGISTRY_IMAGE}/setup:${IMAGE_TAG:-latest}
+    environment:
+      ELASTICSEARCH_HOST: "http://elasticsearch:9200"
+      ELASTICSEARCH_USER: "elastic"
+      ELASTICSEARCH_PASSWORD: "${ELASTIC_PASSWORD:-changeme}"
+      KIBANA_HOST: "http://kibana:5601"
+      KIBANA_USER: "elastic"
+      KIBANA_PASSWORD: "${ELASTIC_PASSWORD:-changeme}"
     networks:
       - elk
     depends_on:
