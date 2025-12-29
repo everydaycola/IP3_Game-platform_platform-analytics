@@ -207,11 +207,12 @@ def create_visualization(title, vis_type, data_view_id, vis_state, description="
         return None
 
 
-def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_global_time=False, formula_expression=None, value_format=None, decimals=1):
+def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_global_time=False, formula_expression=None, value_format=None, decimals=1, sort_field=None):
     """Create a Lens metric visualization (lnsMetric).
 
     When formula_expression is provided, a Lens formula metric is created
     instead of a simple field aggregation.
+    For last_value operation, sort_field should be provided to determine which value is "last".
     """
     lens_id = str(uuid.uuid4())
     layer_id = str(uuid.uuid4())
@@ -247,7 +248,8 @@ def create_lens_metric(title, data_view_id, field, operation_type="max", ignore_
             "isBucketed": False,
             "scale": "ratio",
             "params": {
-                **({"format": fmt} if fmt else {})
+                **({"format": fmt} if fmt else {}),
+                **({"sortField": sort_field} if sort_field and operation_type == "last_value" else {})
             }
         }
 
@@ -949,14 +951,15 @@ def main():
     )
     
     print("\n4. Retention KPIs")
-    # D1/D7/D30 KPIs: Use Value/Last value and strict time range for latest complete cohort
+    # D1/D7/D30 KPIs: Use last_value to show the most recent cohort's retention rate
     # D1: now-2d/d to now-1d/d, D7: now-8d/d to now-7d/d, D30: now-31d/d to now-30d/d
+    # Sort by cohort_date to get the most recent cohort
     visualization_ids["d1"] = create_lens_metric("D1 Retention (Latest Complete Cohort)", retention_cohort_view,
-                                                 "d1_retention", "average",value_format="percent",decimals=1)
+                                                 "d1_retention", "last_value", value_format="percent", decimals=1, sort_field="cohort_date")
     visualization_ids["d7"] = create_lens_metric("D7 Retention (Latest Complete Cohort)", retention_cohort_view,
-                                                 "d7_retention", "average",value_format="percent",decimals=1)
+                                                 "d7_retention", "last_value", value_format="percent", decimals=1, sort_field="cohort_date")
     visualization_ids["d30"] = create_lens_metric("D30 Retention (Latest Complete Cohort)", retention_cohort_view,
-                                                  "d30_retention", "average",value_format="percent",decimals=1)
+                                                  "d30_retention", "last_value", value_format="percent", decimals=1, sort_field="cohort_date")
 
     print("\n5. Retention Trends")
     visualization_ids["ret_trend"] = create_lens_xy(
@@ -967,7 +970,7 @@ def main():
         "average",
         True,
         "line",
-        "cohort_date < now-7d/d",
+        "cohort_date < now-6d/d",
         "Cohort Date",
         "D7 Retention",
         "1d",

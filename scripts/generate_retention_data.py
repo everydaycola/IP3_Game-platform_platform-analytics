@@ -184,20 +184,67 @@ class RetentionDataGenerator:
 
         return event
     
-    def generate_historical_retention_data(self, days: int = 60, new_users_per_day: int = 20):
+    def get_highest_player_id(self) -> int:
+        """Get the highest existing player_id number from Elasticsearch"""
+        try:
+            import requests
+            from requests.auth import HTTPBasicAuth
+            
+            # Query ES for highest player_id
+            url = "http://localhost:9200/platform-events-*/_search"
+            query = {
+                "size": 1,
+                "sort": [{"player_id.keyword": "desc"}],
+                "_source": ["player_id"]
+            }
+            
+            response = requests.post(url, json=query, auth=HTTPBasicAuth('elastic', 'changeme'))
+            if response.status_code == 200:
+                hits = response.json().get('hits', {}).get('hits', [])
+                if hits:
+                    player_id = hits[0]['_source'].get('player_id', 'player_00000')
+                    # Extract number from player_XXXXX format
+                    if player_id.startswith('player_'):
+                        return int(player_id.split('_')[1])
+            return 0
+        except Exception as e:
+            print(f"   ⚠️  Could not fetch highest player_id: {e}")
+            return 0
+    
+    def generate_historical_retention_data(self, days: int = 60, new_users_per_day: int = 20, ensure_dashboard_cohorts: bool = True):
         """
         Generate historical retention data with realistic cohort behavior
         
         Args:
             days: Number of days of historical data to generate
             new_users_per_day: Average number of new users registering per day
+            ensure_dashboard_cohorts: If True, guarantee cohorts on D1/D7/D30 dates for dashboard tiles
         """
         print(f"\n📊 Generating {days} days of retention data...")
         print(f"   Target: ~{new_users_per_day} new users per day")
         print("=" * 70)
         
+        # Get starting player_id number to avoid duplicates
+        starting_player_num = self.get_highest_player_id() + 1
+        print(f"   📍 Starting from player_{starting_player_num:05d} (continuing from existing data)")
+        print("=" * 70)
+        
         now = datetime.now(timezone.utc)
         start_date = now - timedelta(days=days)
+        
+        # Dates that the dashboard "Latest Complete Cohort" tiles expect:
+        # D1: now-2d to now-1d (cohort from yesterday)
+        # D7: now-8d to now-7d (cohort from 7-8 days ago)
+        # D30: now-31d to now-30d (cohort from 30-31 days ago)
+        critical_cohort_dates = set()
+        if ensure_dashboard_cohorts:
+            critical_cohort_dates.add((now - timedelta(days=1)).date())   # D1 cohort (yesterday)
+            critical_cohort_dates.add((now - timedelta(days=7)).date())   # D7 cohort
+            critical_cohort_dates.add((now - timedelta(days=8)).date())   # D7 cohort (backup)
+            critical_cohort_dates.add((now - timedelta(days=30)).date())  # D30 cohort
+            critical_cohort_dates.add((now - timedelta(days=31)).date())  # D30 cohort (backup)
+            print(f"   📌 Ensuring cohorts on dashboard-critical dates: {sorted(critical_cohort_dates)}")
+            print("=" * 70)
         
         # Track user cohorts: {user_id: {profile, first_session_date, last_session_date}}
         users: Dict[str, Dict] = {}
@@ -211,6 +258,8 @@ class RetentionDataGenerator:
             
             # Determine new users for this day (with some randomness)
             is_weekend = current_date.weekday() in [5, 6]
+            is_critical_date = current_date.date() in critical_cohort_dates
+            
             new_users_today = random.randint(
                 int(new_users_per_day * 0.7),
                 int(new_users_per_day * 1.3)
@@ -218,11 +267,16 @@ class RetentionDataGenerator:
             if is_weekend:
                 new_users_today = int(new_users_today * 1.4)  # More signups on weekends
             
+            # CRITICAL: Force minimum new users on dashboard-critical dates
+            # This ensures D1/D7/D30 tiles have data to display
+            if is_critical_date:
+                new_users_today = max(new_users_today, 10)  # At least 10 new users
+            
             sessions_today = 0
             
             # Add new users (onboarding)
             for _ in range(new_users_today):
-                user_id = f"player_{len(users) + 1:05d}"
+                user_id = f"player_{starting_player_num + len(users):05d}"
                 profile_key = self.assign_user_profile()
                 profile = self.USER_PROFILES[profile_key]
 
@@ -390,6 +444,8 @@ class RetentionDataGenerator:
 
 def main():
     """Main function"""
+    import sys
+    
     print("🎯 User Retention & Engagement Data Generator")
     print("=" * 70)
     print("\nThis generator creates realistic session events for retention analysis:")
@@ -407,26 +463,32 @@ def main():
     )
     
     try:
-        print("\n📋 Choose generation mode:")
-        print("  1. Small dataset (30 days, 25 users/day)")
-        print("  2. Medium dataset (60 days, 30 users/day) - RECOMMENDED")
-        print("  3. Large dataset (90 days, 40 users/day)")
-        print("  4. Custom (specify days and users per day)")
-        
-        choice = input("\nYour choice (1-4): ").strip() or "2"
-        
-        if choice == "1":
-            generator.generate_historical_retention_data(days=30, new_users_per_day=25)
-        elif choice == "2":
-            generator.generate_historical_retention_data(days=60, new_users_per_day=30)
-        elif choice == "3":
-            generator.generate_historical_retention_data(days=90, new_users_per_day=40)
-        elif choice == "4":
-            days = int(input("Number of days: ") or "60")
-            users_per_day = int(input("New users per day: ") or "30")
-            generator.generate_historical_retention_data(days=days, new_users_per_day=users_per_day)
+        # Check for non-interactive mode (--auto or piped input)
+        if "--auto" in sys.argv or not sys.stdin.isatty():
+            print("\n📊 Auto mode: generating medium dataset (60 days, 30 users/day)")
+            generator.generate_historical_retention_data(days=60, new_users_per_day=30, ensure_dashboard_cohorts=True)
         else:
-            print("❌ Invalid choice, using default (option 2)")
+            print("\n📋 Choose generation mode:")
+            print("  1. Small dataset (30 days, 25 users/day)")
+            print("  2. Medium dataset (60 days, 30 users/day) - RECOMMENDED")
+            print("  3. Large dataset (90 days, 40 users/day)")
+            print("  4. Custom (specify days and users per day)")
+            
+            choice = input("\nYour choice (1-4): ").strip() or "2"
+            
+            if choice == "1":
+                generator.generate_historical_retention_data(days=30, new_users_per_day=25, ensure_dashboard_cohorts=True)
+            elif choice == "2":
+                generator.generate_historical_retention_data(days=60, new_users_per_day=30, ensure_dashboard_cohorts=True)
+            elif choice == "3":
+                generator.generate_historical_retention_data(days=90, new_users_per_day=40, ensure_dashboard_cohorts=True)
+            elif choice == "4":
+                days = int(input("Number of days: ") or "60")
+                users_per_day = int(input("New users per day: ") or "30")
+                generator.generate_historical_retention_data(days=days, new_users_per_day=users_per_day, ensure_dashboard_cohorts=True)
+            else:
+                print("❌ Invalid choice, using default (option 2)")
+                generator.generate_historical_retention_data(days=60, new_users_per_day=30, ensure_dashboard_cohorts=True)
             generator.generate_historical_retention_data(days=60, new_users_per_day=30)
         
         print("\n" + "=" * 70)

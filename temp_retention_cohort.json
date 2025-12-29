@@ -1,0 +1,104 @@
+﻿{
+    "source":  {
+                   "index":  "events-enriched-03"
+               },
+    "dest":  {
+                 "index":  "retention_cohort"
+             },
+    "pivot":  {
+                  "group_by":  {
+                                   "cohort_date":  {
+                                                       "date_histogram":  {
+                                                                              "field":  "cohort_date",
+                                                                              "calendar_interval":  "1d"
+                                                                          }
+                                                   }
+                               },
+                  "aggregations":  {
+                                       "cohort_size":  {
+                                                           "filter":  {
+                                                                          "term":  {
+                                                                                       "days_since_first":  0
+                                                                                   }
+                                                                      },
+                                                           "aggs":  {
+                                                                        "players":  {
+                                                                                        "cardinality":  {
+                                                                                                            "field":  "player_id.keyword"
+                                                                                                        }
+                                                                                    }
+                                                                    }
+                                                       },
+                                       "d1_retained":  {
+                                                           "filter":  {
+                                                                          "term":  {
+                                                                                       "days_since_first":  1
+                                                                                   }
+                                                                      },
+                                                           "aggs":  {
+                                                                        "players":  {
+                                                                                        "cardinality":  {
+                                                                                                            "field":  "player_id.keyword"
+                                                                                                        }
+                                                                                    }
+                                                                    }
+                                                       },
+                                       "d7_retained":  {
+                                                           "filter":  {
+                                                                          "term":  {
+                                                                                       "days_since_first":  7
+                                                                                   }
+                                                                      },
+                                                           "aggs":  {
+                                                                        "players":  {
+                                                                                        "cardinality":  {
+                                                                                                            "field":  "player_id.keyword"
+                                                                                                        }
+                                                                                    }
+                                                                    }
+                                                       },
+                                       "d30_retained":  {
+                                                            "filter":  {
+                                                                           "term":  {
+                                                                                        "days_since_first":  30
+                                                                                    }
+                                                                       },
+                                                            "aggs":  {
+                                                                         "players":  {
+                                                                                         "cardinality":  {
+                                                                                                             "field":  "player_id.keyword"
+                                                                                                         }
+                                                                                     }
+                                                                     }
+                                                        },
+                                       "d1_retention":  {
+                                                            "bucket_script":  {
+                                                                                  "buckets_path":  {
+                                                                                                       "retained":  "d1_retained\u003eplayers",
+                                                                                                       "cohort":  "cohort_size\u003eplayers"
+                                                                                                   },
+                                                                                  "script":  "params.cohort \u003e 0 ? params.retained / params.cohort : null"
+                                                                              }
+                                                        },
+                                       "d7_retention":  {
+                                                            "bucket_script":  {
+                                                                                  "buckets_path":  {
+                                                                                                       "retained":  "d7_retained\u003eplayers",
+                                                                                                       "cohort":  "cohort_size\u003eplayers"
+                                                                                                   },
+                                                                                  "script":  "params.cohort \u003e 0 ? params.retained / params.cohort : null"
+                                                                              }
+                                                        },
+                                       "d30_retention":  {
+                                                             "bucket_script":  {
+                                                                                   "buckets_path":  {
+                                                                                                        "retained":  "d30_retained\u003eplayers",
+                                                                                                        "cohort":  "cohort_size\u003eplayers"
+                                                                                                    },
+                                                                                   "script":  "params.cohort \u003e 0 ? params.retained / params.cohort : null"
+                                                                               }
+                                                         }
+                                   }
+              },
+    "description":  "Retention metrics per cohort_date (cohort-based)"
+}

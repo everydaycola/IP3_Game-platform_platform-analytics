@@ -17,11 +17,5 @@
       }
     }
   },
-  "description": "First seen date per player for retention cohorts",
-  "sync": {
-    "time": {
-      "field": "@timestamp",
-      "delay": "60s"
-    }
-  }
+  "description": "First seen date per player for retention cohorts"
 }

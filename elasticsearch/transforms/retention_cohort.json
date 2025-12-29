@@ -47,6 +47,5 @@
       }
     }
   },
-  "description": "Retention metrics per cohort_date (cohort-based)",
-  "sync": { "time": { "field": "@timestamp", "delay": "60s" } }
+  "description": "Retention metrics per cohort_date (cohort-based)"
 }
