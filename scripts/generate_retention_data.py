@@ -1,0 +1,515 @@
+#!/usr/bin/env python3
+"""
+User Retention & Engagement Data Generator
+Generates realistic session events for retention analysis with proper cohort behavior
+
+This script simulates:
+- New user onboarding
+- Returning users with realistic patterns
+- Gradual churn (D1 > D7 > D30)
+- Power users and casual users
+- Daily and weekly usage patterns
+"""
+
+import json
+import random
+import time
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Set
+import pika
+import uuid
+from collections import defaultdict
+
+
+class RetentionDataGenerator:
+    """Generates realistic user retention and engagement events"""
+    
+    # User behavior profiles (MORE REALISTIC)
+    USER_PROFILES = {
+        'power_user': {
+            'weight': 0.10,  # 10% of users (most apps have ~5-15%)
+            'd1_retention': 0.75,
+            'd7_retention': 0.60,
+            'd30_retention': 0.45,
+            'sessions_per_day': (2, 5),
+            'session_duration': (480, 1200)  # 8min - 20min
+        },
+        'regular_user': {
+            'weight': 0.25,  # 25% of users
+            'd1_retention': 0.45,
+            'd7_retention': 0.25,
+            'd30_retention': 0.12,
+            'sessions_per_day': (1, 2),
+            'session_duration': (480, 1200)  # 8min - 20min
+        },
+        'casual_user': {
+            'weight': 0.35,  # 35% of users
+            'd1_retention': 0.20,
+            'd7_retention': 0.08,
+            'd30_retention': 0.02,
+            'sessions_per_day': (1, 1),
+            'session_duration': (480, 1200)  # 8min - 20min
+        },
+        'churned_user': {
+            'weight': 0.30,  # 30% of users (high churn is normal)
+            'd1_retention': 0.05,
+            'd7_retention': 0.00,
+            'd30_retention': 0.00,
+            'sessions_per_day': (1, 1),
+            'session_duration': (480, 1200)  # 8min - 20min
+        }
+    }
+    
+    GAMES = [
+        {"id": "game_chess", "name": "Chess"},
+        {"id": "game_catan", "name": "Catan"},
+        {"id": "game_risk", "name": "Risk"},
+        {"id": "game_monopoly", "name": "Monopoly"},
+        {"id": "game_scrabble", "name": "Scrabble"},
+        {"id": "game_tictactoe", "name": "Tic-Tac-Toe"},
+    ]
+    
+    def __init__(self, rabbitmq_host: str = "localhost", rabbitmq_port: int = 5672,
+                 rabbitmq_user: str = "admin", rabbitmq_password: str = "admin"):
+        """Initialize RabbitMQ connection"""
+        print(f"🔌 Connecting to RabbitMQ at {rabbitmq_host}:{rabbitmq_port}...")
+        
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
+        parameters = pika.ConnectionParameters(
+            host=rabbitmq_host,
+            port=rabbitmq_port,
+            credentials=credentials,
+            heartbeat=600,
+            blocked_connection_timeout=300,
+            virtual_host='/'
+        )
+        
+        try:
+            self.connection = pika.BlockingConnection(parameters)
+            self.channel = self.connection.channel()
+            
+            self.exchange_name = 'platform.events'
+            self.channel.exchange_declare(
+                exchange=self.exchange_name,
+                exchange_type='topic',
+                durable=True
+            )
+            
+            # Ensure queue exists for session events
+            queue_name = 'queue.game.session.started'
+            self.channel.queue_declare(queue=queue_name, durable=True)
+            self.channel.queue_bind(
+                exchange=self.exchange_name,
+                queue=queue_name,
+                routing_key='game.session.started'
+            )
+            
+            print("✅ RabbitMQ connection established")
+            
+        except Exception as e:
+            print(f"❌ Failed to connect to RabbitMQ: {e}")
+            raise
+    
+    def close(self):
+        """Close RabbitMQ connection"""
+        if self.connection and not self.connection.is_closed:
+            self.connection.close()
+    
+    def send_event(self, event: Dict):
+        """Send event to RabbitMQ"""
+        routing_key = 'game.session.started'
+        
+        try:
+            self.channel.basic_publish(
+                exchange=self.exchange_name,
+                routing_key=routing_key,
+                body=json.dumps(event),
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    content_type='application/json',
+                    headers={'event_type': 'session_started'}
+                )
+            )
+        except Exception as e:
+            print(f"❌ Failed to send event: {e}")
+            raise
+    
+    def assign_user_profile(self) -> str:
+        """Randomly assign a user behavior profile based on weights"""
+        profiles = list(self.USER_PROFILES.keys())
+        weights = [self.USER_PROFILES[p]['weight'] for p in profiles]
+        return random.choices(profiles, weights=weights)[0]
+    
+    def should_user_return(self, profile: str, days_since_first: int) -> bool:
+        """Determine if user should return based on profile and days since first session"""
+        config = self.USER_PROFILES[profile]
+        
+        if days_since_first == 1:
+            return random.random() < config['d1_retention']
+        elif days_since_first <= 7:
+            return random.random() < config['d7_retention']
+        elif days_since_first <= 30:
+            return random.random() < config['d30_retention']
+        else:
+            # Long-term retention decreases gradually
+            retention_rate = config['d30_retention'] * (0.95 ** (days_since_first - 30))
+            return random.random() < retention_rate
+    
+    def generate_session_event(self, player_id: str, timestamp: datetime, game: Dict = None, profile: Dict = None) -> Dict:
+        """Generate a session_started event with optional duration.
+
+        If a profile config with a 'session_duration' range is provided, we
+        materialize a synthetic session_duration_seconds value so that the
+        dashboard can compute average session duration per player cohort.
+        """
+        if game is None:
+            game = random.choice(self.GAMES)
+
+        duration_seconds = None
+        if profile and "session_duration" in profile:
+            low, high = profile["session_duration"]
+            duration_seconds = random.randint(low, high)
+
+        event = {
+            "event_type": "session_started",
+            "@timestamp": timestamp.isoformat().replace('+00:00', 'Z'),
+            "player_id": player_id,
+            "session_id": str(uuid.uuid4()),
+            "game_id": game["id"],
+            "game_name": game["name"],
+        }
+
+        if duration_seconds is not None:
+            event["session_duration_seconds"] = duration_seconds
+
+        return event
+    
+    def get_highest_player_id(self) -> int:
+        """Get the highest existing player_id number from Elasticsearch"""
+        try:
+            import requests
+            from requests.auth import HTTPBasicAuth
+            
+            # Query ES for highest player_id
+            url = "http://localhost:9200/platform-events-*/_search"
+            query = {
+                "size": 1,
+                "sort": [{"player_id.keyword": "desc"}],
+                "_source": ["player_id"]
+            }
+            
+            response = requests.post(url, json=query, auth=HTTPBasicAuth('elastic', 'changeme'))
+            if response.status_code == 200:
+                hits = response.json().get('hits', {}).get('hits', [])
+                if hits:
+                    player_id = hits[0]['_source'].get('player_id', 'player_00000')
+                    # Extract number from player_XXXXX format
+                    if player_id.startswith('player_'):
+                        return int(player_id.split('_')[1])
+            return 0
+        except Exception as e:
+            print(f"   ⚠️  Could not fetch highest player_id: {e}")
+            return 0
+    
+    def generate_historical_retention_data(self, days: int = 60, new_users_per_day: int = 20, ensure_dashboard_cohorts: bool = True):
+        """
+        Generate historical retention data with realistic cohort behavior
+        
+        Args:
+            days: Number of days of historical data to generate
+            new_users_per_day: Average number of new users registering per day
+            ensure_dashboard_cohorts: If True, guarantee cohorts on D1/D7/D30 dates for dashboard tiles
+        """
+        print(f"\n📊 Generating {days} days of retention data...")
+        print(f"   Target: ~{new_users_per_day} new users per day")
+        print("=" * 70)
+        
+        # Get starting player_id number to avoid duplicates
+        starting_player_num = self.get_highest_player_id() + 1
+        print(f"   📍 Starting from player_{starting_player_num:05d} (continuing from existing data)")
+        print("=" * 70)
+        
+        now = datetime.now(timezone.utc)
+        start_date = now - timedelta(days=days)
+        
+        # Dates that the dashboard "Latest Complete Cohort" tiles expect:
+        # D1: now-2d to now-1d (cohort from yesterday)
+        # D7: now-8d to now-7d (cohort from 7-8 days ago)
+        # D30: now-31d to now-30d (cohort from 30-31 days ago)
+        critical_cohort_dates = set()
+        if ensure_dashboard_cohorts:
+            critical_cohort_dates.add((now - timedelta(days=1)).date())   # D1 cohort (yesterday)
+            critical_cohort_dates.add((now - timedelta(days=7)).date())   # D7 cohort
+            critical_cohort_dates.add((now - timedelta(days=8)).date())   # D7 cohort (backup)
+            critical_cohort_dates.add((now - timedelta(days=30)).date())  # D30 cohort
+            critical_cohort_dates.add((now - timedelta(days=31)).date())  # D30 cohort (backup)
+            print(f"   📌 Ensuring cohorts on dashboard-critical dates: {sorted(critical_cohort_dates)}")
+            print("=" * 70)
+        
+        # Track user cohorts: {user_id: {profile, first_session_date, last_session_date}}
+        users: Dict[str, Dict] = {}
+        events_sent = 0
+        total_sessions = 0
+        
+        # Generate events day by day
+        for day_offset in range(days + 1):
+            current_date = start_date + timedelta(days=day_offset)
+            date_str = current_date.strftime('%Y-%m-%d')
+            
+            # Determine new users for this day (with some randomness)
+            is_weekend = current_date.weekday() in [5, 6]
+            is_critical_date = current_date.date() in critical_cohort_dates
+            
+            new_users_today = random.randint(
+                int(new_users_per_day * 0.7),
+                int(new_users_per_day * 1.3)
+            )
+            if is_weekend:
+                new_users_today = int(new_users_today * 1.4)  # More signups on weekends
+            
+            # CRITICAL: Force minimum new users on dashboard-critical dates
+            # This ensures D1/D7/D30 tiles have data to display
+            if is_critical_date:
+                new_users_today = max(new_users_today, 10)  # At least 10 new users
+            
+            sessions_today = 0
+            
+            # Add new users (onboarding)
+            for _ in range(new_users_today):
+                user_id = f"player_{starting_player_num + len(users):05d}"
+                profile_key = self.assign_user_profile()
+                profile = self.USER_PROFILES[profile_key]
+
+                users[user_id] = {
+                    'profile': profile_key,
+                    'first_session': current_date,
+                    'last_session': current_date
+                }
+                
+                # New user first session (usually during peak hours)
+                session_time = self.get_random_session_time(
+                    current_date,
+                    is_first_session=True,
+                    end_of_range=now
+                )
+                event = self.generate_session_event(user_id, session_time, profile=profile)
+                self.send_event(event)
+                
+                events_sent += 1
+                sessions_today += 1
+            
+            # Check existing users for returning sessions
+            for user_id, user_data in list(users.items()):
+                days_since_first = (current_date - user_data['first_session']).days
+                
+                # Skip if this is their first day (already generated session above)
+                if days_since_first == 0:
+                    continue
+                
+                # Check if user should return today
+                if self.should_user_return(user_data['profile'], days_since_first):
+                    profile_config = self.USER_PROFILES[user_data['profile']]
+                    sessions_count = random.randint(*profile_config['sessions_per_day'])
+                    
+                    # Generate multiple sessions for active users
+                    for _ in range(sessions_count):
+                        session_time = self.get_random_session_time(
+                            current_date,
+                            is_first_session=False,
+                            end_of_range=now
+                        )
+                        event = self.generate_session_event(user_id, session_time, profile=profile_config)
+                        self.send_event(event)
+                        
+                        events_sent += 1
+                        sessions_today += 1
+                    
+                    # Update last session date
+                    user_data['last_session'] = current_date
+            
+            total_sessions += sessions_today
+            
+            # Progress update
+            if (day_offset + 1) % 10 == 0 or day_offset == 0 or day_offset == days:
+                print(f"  Day {day_offset + 1:3d}/{days} ({date_str}): "
+                      f"{sessions_today:4d} sessions, {new_users_today:3d} new users, "
+                      f"{len(users):5d} total users")
+        
+        print("\n" + "=" * 70)
+        print("✅ Historical retention data generation complete!")
+        print(f"\n📈 Statistics:")
+        print(f"   Total users created: {len(users)}")
+        print(f"   Total sessions: {total_sessions}")
+        print(f"   Events sent: {events_sent}")
+        print(f"   Average sessions per day: {total_sessions / (days + 1):.1f}")
+        print(f"\n👥 User Profile Distribution:")
+        
+        profile_counts = defaultdict(int)
+        for user_data in users.values():
+            profile_counts[user_data['profile']] += 1
+        
+        for profile, count in profile_counts.items():
+            percentage = (count / len(users)) * 100
+            print(f"   {profile:15s}: {count:5d} ({percentage:5.1f}%)")
+        
+        # Calculate actual retention metrics
+        print(f"\n📊 Retention Metrics Preview:")
+        self.calculate_retention_preview(users, now)
+        
+        return events_sent
+    
+    def get_random_session_time(self, date: datetime, is_first_session: bool = False,
+                                 end_of_range: datetime = None) -> datetime:
+        """Generate a realistic session time with peak hours.
+
+        If end_of_range is provided and "date" is the same calendar day as
+        end_of_range (typically "now"), generated times will be constrained
+        to be **before or equal** to end_of_range. This ensures that when you
+        generate data including today, the "Today" filter in Kibana can
+        immediately see events (no future timestamps).
+        """
+
+        # Special handling for the last simulated day (usually today):
+        # pick a random instant between start of day and end_of_range.
+        if end_of_range is not None and date.date() == end_of_range.date():
+            start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+            total_seconds = int((end_of_range - start_of_day).total_seconds())
+            if total_seconds <= 0:
+                # Fallback: if end_of_range is before start_of_day for some
+                # reason, just return end_of_range itself.
+                return end_of_range.replace(microsecond=0)
+
+            offset = random.randint(0, max(total_seconds - 1, 0))
+            return start_of_day + timedelta(seconds=offset)
+
+        # Historical days: keep the original peak-hour distributions.
+        if is_first_session:
+            # New users typically join during peak hours (18:00-22:00)
+            hour = random.choices(
+                range(24),
+                weights=[1,1,1,1,1,2,2,3,4,5,5,5,4,3,3,4,6,10,15,18,15,10,5,3]
+            )[0]
+        else:
+            # Regular sessions distributed throughout the day with evening peak
+            hour = random.choices(
+                range(24),
+                weights=[1,1,1,1,1,2,3,5,7,10,9,7,6,5,4,5,8,12,15,16,14,10,6,3]
+            )[0]
+
+        return date.replace(
+            hour=hour,
+            minute=random.randint(0, 59),
+            second=random.randint(0, 59),
+            microsecond=0
+        )
+    
+    def calculate_retention_preview(self, users: Dict, reference_date: datetime):
+        """Calculate and display retention metrics preview"""
+        # Find users who started 1, 7, and 30 days ago
+        cohorts = {
+            1: [],
+            7: [],
+            30: []
+        }
+        
+        for user_id, user_data in users.items():
+            days_since_first = (reference_date - user_data['first_session']).days
+            
+            for cohort_day in cohorts.keys():
+                if days_since_first >= cohort_day:
+                    cohorts[cohort_day].append(user_data)
+        
+        # Calculate retention for each cohort
+        for cohort_day, cohort_users in cohorts.items():
+            if not cohort_users:
+                continue
+            
+            retained = 0
+            for user_data in cohort_users:
+                days_since_first = (reference_date - user_data['first_session']).days
+                days_since_last = (reference_date - user_data['last_session']).days
+                
+                # User is retained if they had a session within the retention window
+                if cohort_day == 1 and days_since_last <= 1:
+                    retained += 1
+                elif cohort_day == 7 and days_since_last <= 7:
+                    retained += 1
+                elif cohort_day == 30 and days_since_last <= 30:
+                    retained += 1
+            
+            retention_rate = (retained / len(cohort_users)) * 100 if cohort_users else 0
+            print(f"   D{cohort_day:2d} Retention: {retention_rate:5.1f}% "
+                  f"({retained}/{len(cohort_users)} users)")
+
+
+def main():
+    """Main function"""
+    import sys
+    
+    print("🎯 User Retention & Engagement Data Generator")
+    print("=" * 70)
+    print("\nThis generator creates realistic session events for retention analysis:")
+    print("  • Simulates different user behavior profiles")
+    print("  • Generates realistic retention curves (D1 > D7 > D30)")
+    print("  • Power users, regular users, casual users, and churned users")
+    print("  • Peak hours and weekend patterns")
+    print("=" * 70)
+    
+    generator = RetentionDataGenerator(
+        rabbitmq_host="localhost",
+        rabbitmq_port=5672,
+        rabbitmq_user="admin",
+        rabbitmq_password="admin"
+    )
+    
+    try:
+        # Check for non-interactive mode (--auto or piped input)
+        if "--auto" in sys.argv or not sys.stdin.isatty():
+            print("\n📊 Auto mode: generating medium dataset (60 days, 30 users/day)")
+            generator.generate_historical_retention_data(days=60, new_users_per_day=30, ensure_dashboard_cohorts=True)
+        else:
+            print("\n📋 Choose generation mode:")
+            print("  1. Small dataset (30 days, 25 users/day)")
+            print("  2. Medium dataset (60 days, 30 users/day) - RECOMMENDED")
+            print("  3. Large dataset (90 days, 40 users/day)")
+            print("  4. Custom (specify days and users per day)")
+            
+            choice = input("\nYour choice (1-4): ").strip() or "2"
+            
+            if choice == "1":
+                generator.generate_historical_retention_data(days=30, new_users_per_day=25, ensure_dashboard_cohorts=True)
+            elif choice == "2":
+                generator.generate_historical_retention_data(days=60, new_users_per_day=30, ensure_dashboard_cohorts=True)
+            elif choice == "3":
+                generator.generate_historical_retention_data(days=90, new_users_per_day=40, ensure_dashboard_cohorts=True)
+            elif choice == "4":
+                days = int(input("Number of days: ") or "60")
+                users_per_day = int(input("New users per day: ") or "30")
+                generator.generate_historical_retention_data(days=days, new_users_per_day=users_per_day, ensure_dashboard_cohorts=True)
+            else:
+                print("❌ Invalid choice, using default (option 2)")
+                generator.generate_historical_retention_data(days=60, new_users_per_day=30, ensure_dashboard_cohorts=True)
+            generator.generate_historical_retention_data(days=60, new_users_per_day=30)
+        
+        print("\n" + "=" * 70)
+        print("✅ Data generation complete!")
+        print("\n📊 Next steps:")
+        print("  1. Wait 30-60 seconds for Logstash to process events")
+        print("  2. Run: python setup/create_retention_transforms.py")
+        print("  3. Run: python scripts/create_retention_dashboard_complete.py")
+        print("  4. Check Kibana at http://localhost:5601")
+        print("\n💡 Events are being processed and stored in Elasticsearch")
+        
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Generation interrupted by user")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        generator.close()
+        print("\n🔌 RabbitMQ connection closed")
+
+
+if __name__ == "__main__":
+    main()

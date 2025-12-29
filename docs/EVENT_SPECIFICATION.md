@@ -347,10 +347,15 @@ Bij optionele velden die ontbreken:
 ## Testing
 
 ### Test Event Generators
-Gebruik [`generate_events.py`](../generate_events.py) voor het genereren van realistische test data.
 
+**Revenue Events:**
 ```bash
-python ../generate_events.py --sessions 10
+python scripts/generate_revenue_data.py
+```
+
+**User Session Events:**
+```bash
+python scripts/generate_retention_data.py
 ```
 
 ### Validation

@@ -27,6 +27,15 @@
         "user_id": {
           "type": "keyword"
         },
+        "player_id": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
         "username": {
           "type": "keyword",
           "fields": {

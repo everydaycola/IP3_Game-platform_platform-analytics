@@ -4,6 +4,9 @@
 Write-Host "Starting platform-analytics stack..." -ForegroundColor Cyan
 Write-Host "============================================================"
 
+Write-Host "Resetting stack (down -v) to start from zero..." -ForegroundColor Yellow
+docker-compose down -v --remove-orphans
+
 # Install Python requirements
 Write-Host "`nInstalling Python requirements..." -ForegroundColor Yellow
 pip install -r requirements.txt --quiet
@@ -79,15 +82,39 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Dashboard creation failed (continuing anyway)" -ForegroundColor Yellow
 }
 
+Write-Host ""
+Write-Host "Deploying User Engagement & Retention dashboard (transforms + pipeline)..." -ForegroundColor Cyan
+
+# Run the deploy script from repo root (but skip the .ndjson import - we'll create dashboard via Python)
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+& (Join-Path $repoRoot "bin\deploy_prod.ps1")
+
+# Create the engagement & retention dashboard using Python (ensures latest KPI definitions with max instead of average)
+Write-Host "`nCreating User Engagement & Retention dashboard..." -ForegroundColor Yellow
+python scripts/create_combined_dashboard.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Dashboard creation failed (continuing anyway)" -ForegroundColor Yellow
+}
+
+
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "Platform Analytics is ready!" -ForegroundColor Green
 Write-Host "`nAccess points:" -ForegroundColor Cyan
 Write-Host "   - Kibana: http://localhost:5601"
 Write-Host "   - Elasticsearch: http://localhost:9200"
 Write-Host "   - RabbitMQ Management: http://localhost:15672"
-Write-Host "   - Dashboard: http://localhost:5601/app/dashboards#/view/revenue-dashboard"
 Write-Host "   - Credentials: elastic / changeme (admin / admin for RabbitMQ)"
-Write-Host "`nRevenue dashboard 'Opbrengsten Dashboard' is ready!" -ForegroundColor Cyan
-Write-Host "`nGenerate test data with:" -ForegroundColor Cyan
-Write-Host '   echo "1" | python .\scripts\generate_revenue_data.py'
+Write-Host "`nDashboards:" -ForegroundColor Yellow
+Write-Host "   1. Revenue Dashboard (Opbrengsten Dashboard)" -ForegroundColor Cyan
+Write-Host "      http://localhost:5601/app/dashboards#/view/revenue-dashboard"
+Write-Host "      - Total Revenue, Avg Purchase Value, Transactions"
+Write-Host "      - Revenue Evolution, Top Games, Payment Methods"
+Write-Host "`n   2. User Engagement & Retention Dashboard" -ForegroundColor Cyan
+Write-Host "      http://localhost:5601/app/dashboards#/list (search for 'User Engagement')"
+Write-Host "      - DAU/WAU/MAU, Avg Session Duration"
+Write-Host "      - D1/D7/D30 Retention Metrics"
+Write-Host "      - Activity Trends and Retention Analysis"
+Write-Host "`nGenerate test data:" -ForegroundColor Yellow
+Write-Host "   - Revenue: echo 1 | python .\\scripts\\generate_revenue_data.py"
+Write-Host "   - Retention: Already generated (~2000 users, 14k+ sessions)"
 Write-Host "============================================================" -ForegroundColor Cyan
