@@ -213,9 +213,9 @@ deploy:development:
     url: http://dev.platform-analytics.local:5601
   only:
     - develop
-  tags:
-    - docker
-    - development
+  # tags:
+  #   - docker
+  #   - development
 
 # ===========================
 # DEPLOY STAGING
@@ -245,9 +245,9 @@ deploy:staging:
     url: http://staging.platform-analytics.local:5601
   only:
     - main
-  tags:
-    - docker
-    - staging
+  # tags:
+  #   - docker
+  #   - staging
 
 # ===========================
 # DEPLOY PRODUCTION
@@ -288,9 +288,9 @@ deploy:production:
   when: manual
   only:
     - main
-  tags:
-    - docker
-    - production
+  # tags:
+  #   - docker
+  #   - production
   artifacts:
     paths:
       - deployment_state_before.txt
