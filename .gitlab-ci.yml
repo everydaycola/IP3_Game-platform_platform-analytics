@@ -279,8 +279,8 @@ deploy:production:
     # Uitgebreide health checks
     - sleep 60
     - docker-compose -f docker-compose.gitlab.yml ps
-    - curl -s -u elastic:changeme http://localhost:9200/_cluster/health || exit 1
-    - curl -s http://localhost:5601/api/status || exit 1
+    - docker-compose -f docker-compose.gitlab.yml exec -T elasticsearch curl -s -u elastic:changeme http://localhost:9200/_cluster/health || exit 1
+    - docker-compose -f docker-compose.gitlab.yml exec -T kibana curl -s http://localhost:5601/api/status || exit 1
     
   environment:
     name: production
