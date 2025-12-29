@@ -2,16 +2,17 @@
 
 ## 🎯 Project Overview
 
-**ISM (Information Systems Management) Project**  
 Analytics platform for gaming platform with two comprehensive dashboards:
 - **Revenue Dashboard** - Monetization and transaction analytics
 - **User Retention & Engagement Dashboard** - User behavior, retention, and churn analysis
 
-**Tech Stack:** Elasticsearch 8.11, Kibana 8.11, Logstash 8.11, RabbitMQ 3.12, Python 3
+**Tech Stack:** Elasticsearch 8.11, Kibana 8.11, Logstash 8.11, RabbitMQ 3.12, Python 
+ 
 
 ---
 
 ## 🚀 Quick Start
+## Automatic Setup (Recommended)
 
 ### First Time Setup
 
@@ -51,7 +52,7 @@ python scripts/generate_retention_data.py
 python scripts/create_revenue_dashboard.py
 
 # User Retention & Engagement Dashboard
-python scripts/create_retention_dashboard.py
+python scripts/create_combined_dashboard.py
 ```
 
 ---
@@ -305,6 +306,7 @@ curl -u elastic:changeme "http://localhost:9200/platform-events-*/_count"
 GET _transform/_stats
 ```
 
+<<<<<<< README.md
 3. Regenerate data if needed:
 ```powershell
 python scripts/generate_retention_data.py
@@ -369,3 +371,47 @@ All ISM requirements implemented:
 - 30 days of revenue data (36,945 transactions, €44,837)
 - 8 retention metrics calculated in real-time
 - 14 visualizations across 2 dashboards
+
+## CI/CD Pipeline
+
+This project includes a complete GitLab CI/CD pipeline with automated testing, building, and deployment.
+
+### Quick Setup
+
+```powershell
+.\bin\setup-cicd.ps1
+```
+
+### Features
+
+- 🔍 **Automated Testing**: Python linting, formatting checks, and unit tests
+- 🐳 **Docker Builds**: Automatic building and pushing to GitLab Container Registry
+- 🚀 **Multi-Environment Deployment**:
+  - Development (auto on `develop` branch)
+  - Staging (auto on `main` branch)
+  - Production (manual approval required)
+- 📦 **Container Registry**: All images stored in GitLab Container Registry
+- 🔒 **Security**: Secrets management via GitLab CI/CD Variables
+
+### Pipeline Stages
+
+1. **Lint** → Code quality checks
+2. **Test** → Unit tests with coverage
+3. **Build** → Build and push Docker images
+4. **Deploy** → Automated deployment to environments
+
+### Documentation
+
+See [docs/CICD_SETUP.md](docs/CICD_SETUP.md) for detailed CI/CD setup instructions.
+
+### Container Registry Images
+
+```bash
+# Login
+docker login registry.gitlab.com
+
+# Pull images
+docker pull registry.gitlab.com/your-username/platform-analytics/elasticsearch:latest
+docker pull registry.gitlab.com/your-username/platform-analytics/kibana:latest
+docker pull registry.gitlab.com/your-username/platform-analytics/logstash:latest
+```
