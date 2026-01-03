@@ -739,7 +739,7 @@ def create_dashboard(title, visualization_ids):
         {"vis_id": visualization_ids.get("d7"), "x": 16, "y": 53, "w": 16, "h": 8, "name": "d7", "so_type": "lens",
          "timeRange": {"from": "now-8d/d", "to": "now-7d/d"}},
         {"vis_id": visualization_ids.get("d30"), "x": 32, "y": 53, "w": 16, "h": 8, "name": "d30", "so_type": "lens",
-         "timeRange": {"from": "now-31d/d", "to": "now-30d/d"}},
+         "timeRange": {"from": "now-32d/d", "to": "now-31d/d"}},
         # Retention Trend (Lens line)
         {"vis_id": visualization_ids.get("ret_trend"), "x": 0, "y": 61, "w": 48, "h": 12, "name": "ret_trend", "so_type": "lens"},
     ]
@@ -951,7 +951,7 @@ def main():
     
     print("\n4. Retention KPIs")
     # D1/D7/D30 KPIs: Use last_value to show the most recent cohort's retention rate
-    # D1: now-2d/d to now-1d/d, D7: now-8d/d to now-7d/d, D30: now-31d/d to now-30d/d
+    # D1: now-2d/d to now-1d/d, D7: now-8d/d to now-7d/d, D30: now-32d/d to now-31d/d (shifted by 1 to ensure complete data)
     # Sort by cohort_date to get the most recent cohort
     visualization_ids["d1"] = create_lens_metric("D1 Retention (Latest Complete Cohort)", retention_cohort_view,
                                                  "d1_retention", "last_value", value_format="percent", decimals=1, sort_field="cohort_date")

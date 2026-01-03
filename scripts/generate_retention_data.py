@@ -369,32 +369,36 @@ class RetentionDataGenerator:
         immediately see events (no future timestamps).
         """
 
-        # Special handling for the last simulated day (usually today):
-        # pick a random instant between start of day and end_of_range.
-        if end_of_range is not None and date.date() == end_of_range.date():
-            start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
-            total_seconds = int((end_of_range - start_of_day).total_seconds())
-            if total_seconds <= 0:
-                # Fallback: if end_of_range is before start_of_day for some
-                # reason, just return end_of_range itself.
-                return end_of_range.replace(microsecond=0)
-
-            offset = random.randint(0, max(total_seconds - 1, 0))
-            return start_of_day + timedelta(seconds=offset)
-
-        # Historical days: keep the original peak-hour distributions.
+        # Hour weights for realistic distribution (evening peak 18-21)
         if is_first_session:
-            # New users typically join during peak hours (18:00-22:00)
-            hour = random.choices(
-                range(24),
-                weights=[1,1,1,1,1,2,2,3,4,5,5,5,4,3,3,4,6,10,15,18,15,10,5,3]
-            )[0]
+            hour_weights = [1,1,1,1,1,1,2,4,6,8,10,8,5,4,5,7,10,18,25,30,25,15,8,3]
         else:
-            # Regular sessions distributed throughout the day with evening peak
-            hour = random.choices(
-                range(24),
-                weights=[1,1,1,1,1,2,3,5,7,10,9,7,6,5,4,5,8,12,15,16,14,10,6,3]
-            )[0]
+            hour_weights = [1,1,1,1,1,2,3,6,10,14,12,9,6,5,6,9,15,22,28,32,26,18,10,4]
+
+        # Special handling for the last simulated day (usually today):
+        # Use peak-hour distribution but constrain to hours before end_of_range
+        if end_of_range is not None and date.date() == end_of_range.date():
+            current_hour = end_of_range.hour
+            # Zero out weights for hours after current time
+            adjusted_weights = hour_weights[:current_hour + 1] + [0] * (23 - current_hour)
+            
+            if sum(adjusted_weights) == 0:
+                # If no valid hours, return early morning
+                return date.replace(hour=0, minute=random.randint(0, 59), second=random.randint(0, 59), microsecond=0)
+            
+            hour = random.choices(range(24), weights=adjusted_weights)[0]
+            
+            # If selected hour is the current hour, constrain minutes
+            if hour == current_hour:
+                max_minute = end_of_range.minute
+                minute = random.randint(0, max(0, max_minute))
+            else:
+                minute = random.randint(0, 59)
+            
+            return date.replace(hour=hour, minute=minute, second=random.randint(0, 59), microsecond=0)
+
+        # Historical days: use peak-hour distributions.
+        hour = random.choices(range(24), weights=hour_weights)[0]
 
         return date.replace(
             hour=hour,

@@ -20,7 +20,7 @@ import os
 from requests.auth import HTTPBasicAuth
 from datetime import datetime
 
-ES_HOST = os.getenv("ELASTICSEARCH_HOST", "http://localhost:9200")
+ES_HOST = os.getenv("ELASTICSEARCHxOST", "http://localhost:9200")
 ES_USER = os.getenv("ELASTICSEARCH_USER", "elastic")
 ES_PASS = os.getenv("ELASTICSEARCH_PASSWORD", "changeme")
 
@@ -140,7 +140,7 @@ def create_dau_wau_mau_transform():
             "aggregations": {
                 "daily_active_users": {
                     "cardinality": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 },
                 "total_sessions": {
@@ -199,7 +199,7 @@ def create_user_session_metrics_transform():
             "group_by": {
                 "player_id": {
                     "terms": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 }
             },
@@ -273,7 +273,7 @@ def create_retention_cohort_transform():
             "group_by": {
                 "player_id": {
                     "terms": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 },
                 "cohort_week": {
@@ -364,7 +364,7 @@ def create_hourly_activity_transform():
                 },
                 "unique_players": {
                     "cardinality": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 }
             }

@@ -331,7 +331,7 @@ try {
 
 Log "10) Skip Kibana .ndjson import (dashboard will be created via Python script)"
 Write-Host "   Note: The User Engagement & Retention dashboard will be created by" -ForegroundColor Gray
-Write-Host "   scripts/create_combined_dashboard.py with the latest KPI definitions" -ForegroundColor Gray
+Write-Host "   scripts/create_retention_engagement_dashboard.py with the latest KPI definitions" -ForegroundColor Gray
 
 Log "DONE ✅"
 
