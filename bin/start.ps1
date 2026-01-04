@@ -75,27 +75,103 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Data view creation failed (continuing anyway)" -ForegroundColor Yellow
 }
 
-# Create revenue dashboard
-Write-Host "`nCreating revenue dashboard..." -ForegroundColor Yellow
-python setup/create_revenue_dashboard.py
+# Generate Revenue data (purchase_made, payment_made, gamePage_visit events)
+Write-Host "`n============================================================" -ForegroundColor Cyan
+Write-Host "Generating Revenue data..." -ForegroundColor Yellow
+Write-Host "============================================================" -ForegroundColor Cyan
+
+python setup/generate_revenue_data.py
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Dashboard creation failed (continuing anyway)" -ForegroundColor Yellow
+    Write-Host "Revenue data generation failed" -ForegroundColor Red
 }
 
 Write-Host ""
 Write-Host "Deploying User Engagement & Retention dashboard (transforms + pipeline)..." -ForegroundColor Cyan
 
-# Run the deploy script from repo root (but skip the .ndjson import - we'll create dashboard via Python)
+# Run the retention dashboard setup script (transforms, enrich policy, pipeline)
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-& (Join-Path $repoRoot "bin\deploy_prod.ps1")
+& (Join-Path $repoRoot "bin\setup_retention_dashboard.ps1")
 
-# Create the engagement & retention dashboard using Python (ensures latest KPI definitions with max instead of average)
-Write-Host "`nCreating User Engagement & Retention dashboard..." -ForegroundColor Yellow
-python scripts/create_combined_dashboard.py
+# Also run the Python retention transforms setup (creates additional transforms with player_id.keyword fix)
+Write-Host "`nCreating retention transforms (DAU/WAU/MAU/Cohorts)..." -ForegroundColor Yellow
+echo "" | python setup/create_retention_transforms.py
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Dashboard creation failed (continuing anyway)" -ForegroundColor Yellow
+    Write-Host "Retention transforms creation had issues (continuing anyway)" -ForegroundColor Yellow
 }
 
+# Generate Game Performance data (game_started, game_ended, game_abandoned events)
+Write-Host "`n============================================================" -ForegroundColor Cyan
+Write-Host "Generating Game Performance data..." -ForegroundColor Yellow
+Write-Host "============================================================" -ForegroundColor Cyan
+
+# Run the game performance data generator (uses RabbitMQ, generates 60 days of sessions)
+# Auto-select option 1 (60 days) for startup
+"1" | python setup/generate_game_performance_data.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Game performance data generation failed" -ForegroundColor Red
+}
+
+# Wait for Logstash to process events (need more time for all game sessions)
+Write-Host "`nWaiting for Logstash to process events (30 seconds)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 30
+
+# Import dashboards from exported NDJSON files using Kibana Saved Objects API
+Write-Host "`n============================================================" -ForegroundColor Cyan
+Write-Host "Importing Kibana Dashboards from exports..." -ForegroundColor Yellow
+Write-Host "============================================================" -ForegroundColor Cyan
+
+$kibanaUrl = "http://localhost:5601"
+$kibanaAuth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("elastic:changeme"))
+$exportPath = Join-Path $repoRoot "kibana\exports"
+
+# Import each dashboard NDJSON file
+$dashboardFiles = @(
+    @{ file = "revenue.ndjson"; name = "Revenue Dashboard" },
+    @{ file = "user_engagement_retention.ndjson"; name = "User Engagement & Retention Dashboard" },
+    @{ file = "game_performance.ndjson"; name = "Game Performance Dashboard" }
+)
+
+foreach ($dashboard in $dashboardFiles) {
+    $filePath = Join-Path $exportPath $dashboard.file
+    if (Test-Path $filePath) {
+        Write-Host "  Importing $($dashboard.name)..." -ForegroundColor Gray
+        try {
+            $fileContent = Get-Content -Path $filePath -Raw -Encoding UTF8
+            $boundary = "----WebKitFormBoundary" + [System.Guid]::NewGuid().ToString("N").Substring(0,16)
+            
+            $bodyLines = @(
+                "--$boundary",
+                "Content-Disposition: form-data; name=`"file`"; filename=`"$($dashboard.file)`"",
+                "Content-Type: application/ndjson",
+                "",
+                $fileContent,
+                "--$boundary--",
+                ""
+            )
+            $body = $bodyLines -join "`r`n"
+            
+            $response = Invoke-RestMethod -Uri "$kibanaUrl/api/saved_objects/_import?overwrite=true" `
+                -Method POST `
+                -Headers @{
+                    "Authorization" = "Basic $kibanaAuth"
+                    "kbn-xsrf" = "true"
+                    "Content-Type" = "multipart/form-data; boundary=$boundary"
+                } `
+                -Body $body `
+                -ErrorAction Stop
+            
+            if ($response.success) {
+                Write-Host "    ✅ $($dashboard.name) imported ($($response.successCount) objects)" -ForegroundColor Green
+            } else {
+                Write-Host "    ⚠️  $($dashboard.name) import had issues" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "    ❌ Failed to import $($dashboard.name): $_" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "  ⚠️  File not found: $filePath" -ForegroundColor Yellow
+    }
+}
 
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "Platform Analytics is ready!" -ForegroundColor Green
@@ -114,7 +190,12 @@ Write-Host "      http://localhost:5601/app/dashboards#/list (search for 'User E
 Write-Host "      - DAU/WAU/MAU, Avg Session Duration"
 Write-Host "      - D1/D7/D30 Retention Metrics"
 Write-Host "      - Activity Trends and Retention Analysis"
-Write-Host "`nGenerate test data:" -ForegroundColor Yellow
-Write-Host "   - Revenue: echo 1 | python .\\scripts\\generate_revenue_data.py"
-Write-Host "   - Retention: Already generated (~2000 users, 14k+ sessions)"
+Write-Host "`n   3. Game Performance Dashboard" -ForegroundColor Cyan
+Write-Host "      http://localhost:5601/app/dashboards#/list (search for 'Game Performance')"
+Write-Host "      - Totale sessies, Unieke spelers, Gem. sessieduur"
+Write-Host "      - Voltooide games, Verlaten games"
+Write-Host "      - Sessies per spel, Evolutie over tijd"
+Write-Host "`nGenerate additional test data:" -ForegroundColor Yellow
+Write-Host "   - Revenue: python .\\setup\\generate_revenue_data.py"
+Write-Host "   - Game Performance: python .\\setup\\generate_game_performance_data.py"
 Write-Host "============================================================" -ForegroundColor Cyan

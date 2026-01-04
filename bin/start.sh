@@ -53,14 +53,14 @@ python3 setup/create_data_view.py || echo "⚠️ Data view creation failed (con
 
 # Create revenue dashboard
 echo "💰 Creating revenue dashboard..."
-python3 setup/create_revenue_dashboard.py || echo "⚠️ Dashboard creation failed (continuing anyway)"
+python3 scripts/create_revenue_dashboard.py || echo "⚠️ Dashboard creation failed (continuing anyway)"
 
 echo "📈 Deploying User Engagement & Retention assets (transforms + pipeline)..."
-bash ./bin/deploy_prod.sh || echo "⚠️ Engagement & Retention deploy failed (check logs)"
+bash ./bin/setup_retention_dashboard.sh || echo "⚠️ Engagement & Retention deploy failed (check logs)"
 
 # Create the engagement & retention dashboard using Python (ensures latest KPI definitions with max instead of average)
 echo "📊 Creating User Engagement & Retention dashboard..."
-python3 scripts/create_combined_dashboard.py || echo "⚠️ Dashboard creation failed (continuing anyway)"
+python3 scripts/create_retention_engagement_dashboard.py || echo "⚠️ Dashboard creation failed (continuing anyway)"
 
 echo ""
 echo "============================================================"

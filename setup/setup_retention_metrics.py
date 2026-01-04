@@ -129,7 +129,7 @@ def create_wau_transform():
             "aggregations": {
                 "weekly_active_users": {
                     "cardinality": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 },
                 "total_sessions": {
@@ -188,7 +188,7 @@ def create_mau_transform():
             "aggregations": {
                 "monthly_active_users": {
                     "cardinality": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 },
                 "total_sessions": {
@@ -258,7 +258,7 @@ def create_retention_rates_transform():
                 },
                 "player_id": {
                     "terms": {
-                        "field": "player_id"
+                        "field": "player_id.keyword"
                     }
                 }
             },

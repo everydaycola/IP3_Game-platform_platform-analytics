@@ -2,57 +2,51 @@
 
 ## 🎯 Project Overview
 
-Analytics platform for gaming platform with two comprehensive dashboards:
+Analytics platform for gaming platform with three comprehensive dashboards:
 - **Revenue Dashboard** - Monetization and transaction analytics
 - **User Retention & Engagement Dashboard** - User behavior, retention, and churn analysis
+- **Game Performance Dashboard** - Game usage, popularity, and performance metrics
 
-**Tech Stack:** Elasticsearch 8.11, Kibana 8.11, Logstash 8.11, RabbitMQ 3.12, Python 
- 
+**Tech Stack:** Elasticsearch 8.11, Kibana 8.11, Logstash 8.11, RabbitMQ 3.12, Python
 
 ---
 
-## 🚀 Quick Start
-## Automatic Setup (Recommended)
+## 🚀 Quick Start (One Command Setup)
 
-### First Time Setup
+### Automatic Setup (Recommended)
 
 ```powershell
-# 1. Start all services with automated setup
+# Run this single command to start everything
 .\bin\start.ps1
-
-# 2. Wait for completion (~2 minutes)
-# The script automatically:
-#   - Starts Elasticsearch
-#   - Waits for health check
-#   - Configures templates and passwords
-#   - Starts all services (Kibana, Logstash, RabbitMQ)
-
-# 3. Access Kibana
-# URL: http://localhost:5601
-# Username: elastic
-# Password: changeme
 ```
 
-### Generate Data
+**What the script does automatically (~3 minutes):**
+1. Resets Docker stack (removes old volumes)
+2. Installs Python requirements
+3. Starts Elasticsearch and waits for health check
+4. Configures templates and user passwords
+5. Starts all services (Kibana, Logstash, RabbitMQ)
+6. Sets up RabbitMQ queue bindings
+7. Creates Kibana data view
+8. Generates Revenue data (30 days of transactions)
+9. Deploys retention transforms and pipeline
+10. Generates Game Performance data (60 days of sessions)
+11. Imports all 3 dashboards from NDJSON exports
+
+**Access Kibana:**
+- URL: http://localhost:5601
+- Username: `elastic`
+- Password: `changeme`
+
+### Manual Data Generation (Optional)
 
 ```powershell
 # Revenue Dashboard - 30 days of transaction data
-python scripts/generate_revenue_data.py
-# Choose option 2: "30 days historical data"
+python setup/generate_revenue_data.py
 
-# Retention Dashboard - 60 days of user behavior data
-python scripts/generate_retention_data.py
-# Choose option 2: "60 days (1,400 users, realistic profiles)"
-```
-
-### Create Dashboards
-
-```powershell
-# Revenue Dashboard
-python scripts/create_revenue_dashboard.py
-
-# User Retention & Engagement Dashboard
-python scripts/create_combined_dashboard.py
+# Game Performance Dashboard - 60 days of game session data
+python setup/generate_game_performance_data.py
+# Choose option 1: "Full historical data (60 days)"
 ```
 
 ---
@@ -148,6 +142,59 @@ Data generation simulates 4 realistic user types:
 - **Super Active** (10%): Daily players, 5-10 sessions/day, 90% retention
 - **Regular** (30%): 3-5 times/week, 3-7 sessions/day, 70% retention
 - **Casual** (40%): 1-2 times/week, 1-4 sessions/day, 50% retention
+
+---
+
+## 📊 Dashboard 3: Game Performance
+
+**Purpose:** Track game usage, popularity, and performance metrics to make data-driven decisions about game development and marketing
+
+### Key Metrics (KPIs)
+- **Total Sessions (period)**: ~2,500 sessions (60 days)
+- **Unique Players (period)**: ~500 unique players
+- **Avg Session Duration**: 24 minutes
+- **Completion Rate**: 68% (games finished successfully)
+- **Abandon Rate**: 32% (games left early)
+
+### Visualizations
+1. **Sessions per Game** - Horizontal bar chart showing most played games
+2. **Unique Players per Game** - Which games attract unique players
+3. **Game Evolution Over Time** - Line chart showing session trends per game
+4. **Avg Session Duration per Game** - Compare engagement levels
+5. **Completion vs Abandon Rate per Game** - Identify problematic games
+6. **Weekday vs Weekend Activity** - Peak activity patterns
+
+### Analysis Questions Answered
+✅ Welke spellen worden het meest gespeeld (sessies & unieke spelers)?  
+✅ Welke spellen worden het vaakst vroegtijdig verlaten?  
+✅ Hoe evolueert de activiteit per spel over tijd (groei vs daling)?  
+✅ Hoe lang duren sessies gemiddeld per spel?  
+✅ Op welke dagen is de activiteit het hoogst (weekdag vs weekend)?
+
+### Game Portfolio
+- **Catan** (35% of sessions): Most popular, 28 min avg, 68% completion
+- **Ticket to Ride** (30% of sessions): 22 min avg, 72% completion
+- **Prototype spel** (20% of sessions): New game being tested, 58% completion ⚠️
+- **Chess** (8% of sessions): 18 min avg, 75% completion
+- **Risk** (5% of sessions): 45 min avg, 60% completion
+- **Monopoly** (2% of sessions): 50 min avg, 55% completion ⚠️
+
+### Data Events Used
+- `game_started`: Player starts a game session
+- `game_ended`: Player completes a game successfully
+- `game_abandoned`: Player leaves game early (reasons: quit, timeout, error)
+
+### Usage Patterns
+- **Peak Hours**: 14:00-22:00 (evening gaming)
+- **Weekend Boost**: 50% more sessions vs weekdays
+- **Player Behavior**: Average player plays 5 sessions over 7 days
+- **Session Success**: 68% completion rate is healthy (60%+ is good)
+
+### Warning Signs to Monitor
+⚠️ **Abandon Rate > 40%**: Indicates technical issues or poor UX  
+⚠️ **Declining Trend**: Game losing popularity, needs attention  
+⚠️ **Short Sessions + High Abandon**: Critical gameplay problems  
+⚠️ **No Unique Player Growth**: Marketing needed
 - **Churned** (20%): Played once/few times, then stopped
 
 ---
@@ -171,12 +218,64 @@ Data generation simulates 4 realistic user types:
 
 | Script | Purpose |
 |--------|---------|
-| `bin/start.ps1` | Automated startup with health checks |
-| `scripts/generate_revenue_data.py` | Generate transaction events |
-| `scripts/generate_retention_data.py` | Generate user session events |
-| `scripts/create_revenue_dashboard.py` | Create revenue dashboard |
-| `scripts/create_retention_dashboard.py` | Create retention dashboard |
-| `setup/setup_elasticsearch.py` | Configure ES templates and transforms |
+| `bin/start.ps1` | **Main startup script** - Automated setup with health checks, data generation, and dashboard import |
+| `setup/generate_revenue_data.py` | Generate transaction events (30 days) |
+| `setup/generate_game_performance_data.py` | Generate game session events (60 days) |
+| `setup/create_retention_transforms.py` | Create Elasticsearch transforms for retention metrics |
+| `setup/setup_elasticsearch.py` | Configure ES templates and initial setup |
+| `setup/setup_rabbitmq_bindings.py` | Configure RabbitMQ queue bindings |
+| `setup/create_data_view.py` | Create Kibana data view for platform-events |
+
+### Dashboard Exports
+
+Dashboards are stored as NDJSON files and imported via Kibana Saved Objects API:
+
+| File | Dashboard |
+|------|-----------|
+| `kibana/exports/revenue.ndjson` | Revenue Dashboard (11 objects) |
+| `kibana/exports/user_engagement_retention.ndjson` | User Engagement & Retention Dashboard |
+| `kibana/exports/game_performance.ndjson` | Game Performance Dashboard (12 objects) |
+
+**To update a dashboard:**
+1. Modify the dashboard in Kibana UI
+2. Export via Stack Management → Saved Objects → Export
+3. Save the NDJSON to `kibana/exports/`
+4. The dashboard will be imported on next `.\bin\start.ps1`
+
+### Project Structure
+
+```
+platform-analytics/
+├── bin/                              # Startup and deployment scripts
+│   ├── start.ps1                     # Main startup script (Windows)
+│   ├── start.sh                      # Main startup script (Linux/Mac)
+│   └── deploy_prod.ps1               # Production deployment
+├── setup/                            # Setup and data generation scripts
+│   ├── setup_elasticsearch.py        # ES template configuration
+│   ├── setup_rabbitmq_bindings.py    # RabbitMQ queue bindings
+│   ├── create_data_view.py           # Kibana data view creation
+│   ├── create_retention_transforms.py # Retention metric transforms
+│   ├── generate_revenue_data.py      # Revenue data generator
+│   └── generate_game_performance_data.py # Game session generator
+├── elasticsearch/                    # ES configuration
+│   ├── config/elasticsearch.yml
+│   ├── templates/                    # Index templates
+│   └── transforms/                   # Transform definitions
+├── kibana/                           # Kibana configuration
+│   ├── config/kibana.yml
+│   └── exports/                      # Dashboard NDJSON exports
+│       ├── revenue.ndjson
+│       ├── user_engagement_retention.ndjson
+│       └── game_performance.ndjson
+├── logstash/                         # Logstash configuration
+│   ├── config/logstash.yml
+│   └── pipeline/logstash.conf        # Event processing pipeline
+├── scripts/                          # Additional utility scripts
+├── docs/                             # Documentation
+├── tests/                            # Unit and integration tests
+├── docker-compose.yml                # Main Docker stack
+└── requirements.txt                  # Python dependencies
+```
 
 ### Indices Created
 - `platform-events-*`: Raw events (purchases, sessions)
@@ -306,10 +405,10 @@ curl -u elastic:changeme "http://localhost:9200/platform-events-*/_count"
 GET _transform/_stats
 ```
 
-<<<<<<< README.md
 3. Regenerate data if needed:
 ```powershell
-python scripts/generate_retention_data.py
+python setup/generate_revenue_data.py
+python setup/generate_game_performance_data.py
 ```
 
 ### Port conflicts
@@ -359,18 +458,20 @@ netstat -ano | findstr :5601
 
 All ISM requirements implemented:
 - ✅ Revenue Dashboard (monetization tracking)
-- ✅ Retention Dashboard (user engagement, retention, churn)
+- ✅ User Engagement & Retention Dashboard (user behavior, retention, churn)
+- ✅ Game Performance Dashboard (game usage, popularity, metrics)
 - ✅ Real-time data pipeline (RabbitMQ → Logstash → Elasticsearch)
 - ✅ Automated transforms (DAU, WAU, MAU, Retention, Churn)
 - ✅ Management-ready visualizations (no technical jargon)
 - ✅ Comprehensive documentation
-- ✅ Automated setup scripts
+- ✅ One-command automated setup (`.\bin\start.ps1`)
+- ✅ Dashboard exports stored as NDJSON files
 
 **Data Summary:**
-- 60 days of user behavior data (1,376 users)
+- 60 days of game performance data (sessions, completions, abandons)
 - 30 days of revenue data (36,945 transactions, €44,837)
 - 8 retention metrics calculated in real-time
-- 14 visualizations across 2 dashboards
+- 3 dashboards imported from NDJSON exports
 
 ## CI/CD Pipeline
 

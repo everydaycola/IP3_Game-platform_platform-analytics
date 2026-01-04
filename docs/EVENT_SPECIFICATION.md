@@ -350,7 +350,7 @@ Bij optionele velden die ontbreken:
 
 **Revenue Events:**
 ```bash
-python scripts/generate_revenue_data.py
+python setup/generate_revenue_data.py
 ```
 
 **User Session Events:**

@@ -201,7 +201,7 @@ curl -sS -X POST "${auth_es[@]}" "${ELASTIC_URL}/_transform/${TF_RETENTION_COHOR
 # ---- 7) Skip Kibana import (dashboard created via Python script) ----
 log "7) Skip Kibana .ndjson import (dashboard will be created via Python script)"
 echo "   Note: The User Engagement & Retention dashboard will be created by"
-echo "   scripts/create_combined_dashboard.py with the latest KPI definitions"
+echo "   scripts/create_retention_engagement_dashboard.py with the latest KPI definitions"
 
 log "DONE ✅"
 echo "Tip: If you use Logstash, make sure it routes platform-events-* into events-enriched-* using ingest pipeline: $PIPELINE_NAME"
