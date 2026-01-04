@@ -11,7 +11,22 @@ Analytics platform for gaming platform with three comprehensive dashboards:
 
 ---
 
-## 🚀 Quick Start (One Command Setup)
+## � Documentation & Dashboard Previews
+
+**Ready-to-Use Dashboards:** All three dashboards are fully configured and ready to deploy. Preview the complete dashboard layouts and visualizations in the following PDF documentation:
+
+- 📊 [Revenue Dashboard](docs/dashboards/Revenue%20Dashboard.pdf) - Complete revenue analytics and transaction monitoring
+- 👥 [User Engagement & Retention](docs/dashboards/User%20Engagement%20&%20Retention.pdf) - DAU/MAU metrics and cohort analysis
+- 🎮 [Game Performance Dashboard](docs/dashboards/Game%20Performance%20Dashboard.pdf) - Game usage and performance analytics
+
+**Event Specification & Testing:**
+- 📋 [EVENT_SPECIFICATION.md](docs/EVENT_SPECIFICATION.md) - Complete event schema reference
+- 🧪 [TESTING_EVENTS.md](docs/TESTING_EVENTS.md) - How to test analytics events
+- ✅ [EVENT_STATUS_SUMMARY.md](docs/EVENT_STATUS_SUMMARY.md) - Implementation status overview
+
+---
+
+## �🚀 Quick Start (One Command Setup)
 
 ### Automatic Setup (Recommended)
 
