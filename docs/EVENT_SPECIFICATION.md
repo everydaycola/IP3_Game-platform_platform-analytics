@@ -15,7 +15,8 @@ Events gerelateerd aan game sessies en gameplay.
 #### 1.1 Game Started
 **Event Type**: `game_started`  
 **Routing Key**: `game.session.started`  
-**Beschrijving**: Wordt verstuurd wanneer een nieuwe game sessie start
+**Beschrijving**: Wordt verstuurd wanneer een nieuwe game sessie start  
+**Status**: ✅ IMPLEMENTED
 
 **Payload**:
 ```json
@@ -39,7 +40,8 @@ Events gerelateerd aan game sessies en gameplay.
 #### 1.2 Game Ended
 **Event Type**: `game_ended`  
 **Routing Key**: `game.session.ended`  
-**Beschrijving**: Wordt verstuurd wanneer een game sessie normaal eindigt
+**Beschrijving**: Wordt verstuurd wanneer een game sessie normaal eindigt  
+**Status**: ✅ IMPLEMENTED
 
 **Payload**:
 ```json
@@ -63,21 +65,26 @@ Events gerelateerd aan game sessies en gameplay.
 #### 1.3 Game Abandoned
 **Event Type**: `game_abandoned`  
 **Routing Key**: `game.session.abandoned`  
-**Beschrijving**: Wordt verstuurd wanneer een speler een game verlaat zonder te voltooien
+**Beschrijving**: Wordt verstuurd wanneer een speler een game verlaat zonder te voltooien  
+**Status**: ✅ IMPLEMENTED
 
 **Payload**:
 ```json
 {
   "event_type": "game_abandoned",
-  "timestamp": "2024-12-04T14:45:00Z",
+  "@timestamp": "2024-12-04T14:45:00Z",
   "game_id": "uuid",
+  "game_name": "Chess",
   "player_id": "uuid",
   "session_id": "uuid",
-  "session_duration": 900,
+  "session_duration_seconds": 900,
   "completed": false,
-  "reason": "player_quit|timeout|error"
+  "reason": "player_quit|timeout|error",
+  "abandoned_at": "2024-12-04T14:45:00Z"
 }
 ```
+
+**Note**: Implementation uses `session_duration_seconds` and `@timestamp`
 
 **Analytics gebruik**: Churn analysis, game quality issues detection
 
@@ -86,7 +93,8 @@ Events gerelateerd aan game sessies en gameplay.
 #### 1.4 Winner Declared
 **Event Type**: `winner_declared`  
 **Routing Key**: `game.winner.declared`  
-**Beschrijving**: Wordt verstuurd wanneer er een winnaar is in de game
+**Beschrijving**: Wordt verstuurd wanneer er een winnaar is in de game  
+**Status**: ⚠️ NOT YET IMPLEMENTED
 
 **Payload**:
 ```json
@@ -108,7 +116,8 @@ Events gerelateerd aan game sessies en gameplay.
 #### 1.5 Achievement Unlocked
 **Event Type**: `achievement_unlocked`  
 **Routing Key**: `game.achievement.unlocked`  
-**Beschrijving**: Wordt verstuurd wanneer een speler een achievement behaalt
+**Beschrijving**: Wordt verstuurd wanneer een speler een achievement behaalt  
+**Status**: ⚠️ NOT YET IMPLEMENTED - Planned for future release
 
 **Payload**:
 ```json
@@ -127,13 +136,44 @@ Events gerelateerd aan game sessies en gameplay.
 
 ---
 
-### 2. User Action Events
+### 2. User Session Events
+
+Events gerelateerd aan gebruikerssessies en engagement.
+
+#### 2.1 Session Started
+**Event Type**: `session_started`  
+**Routing Key**: `game.session.started`  
+**Beschrijving**: Wordt verstuurd wanneer een speler een nieuwe sessie start  
+**Status**: ✅ IMPLEMENTED
+
+**Payload**:
+```json
+{
+  "event_type": "session_started",
+  "@timestamp": "2024-12-04T14:00:00Z",
+  "player_id": "uuid",
+  "session_id": "uuid",
+  "game_id": "game_chess",
+  "game_name": "Chess",
+  "session_duration_seconds": 600
+}
+```
+
+**Verplichte velden**: `event_type`, `@timestamp`, `player_id`, `session_id`, `game_id`  
+**Analytics gebruik**: DAU/MAU metrics, retention cohorts, engagement tracking
+
+**Note**: Dit event wordt gebruikt voor User Retention & Engagement Dashboard. De `session_duration_seconds` is optioneel maar helpt bij het berekenen van engagement metrics.
+
+---
+
+### 3. User Action Events
 
 Events gerelateerd aan gebruikersacties buiten gameplay.
 
-#### 2.1 User Logged In
+#### 3.1 User Logged In
 **Event Type**: `user_logged_in`  
-**Routing Key**: `user.session.logged_in`
+**Routing Key**: `user.session.logged_in`  
+**Status**: ⚠️ NOT YET IMPLEMENTED - Use `session_started` for now
 
 **Payload**:
 ```json
@@ -151,9 +191,10 @@ Events gerelateerd aan gebruikersacties buiten gameplay.
 
 ---
 
-#### 2.2 User Logged Out
+#### 3.2 User Logged Out
 **Event Type**: `user_logged_out`  
-**Routing Key**: `user.session.logged_out`
+**Routing Key**: `user.session.logged_out`  
+**Status**: ⚠️ NOT YET IMPLEMENTED
 
 **Payload**:
 ```json
@@ -170,9 +211,10 @@ Events gerelateerd aan gebruikersacties buiten gameplay.
 
 ---
 
-#### 2.3 User Registered
+#### 3.3 User Registered
 **Event Type**: `user_registered`  
-**Routing Key**: `user.account.registered`
+**Routing Key**: `user.account.registered`  
+**Status**: ⚠️ NOT YET IMPLEMENTED
 
 **Payload**:
 ```json
@@ -188,9 +230,10 @@ Events gerelateerd aan gebruikersacties buiten gameplay.
 
 ---
 
-#### 2.4 Friend Added
+#### 3.4 Friend Added
 **Event Type**: `friend_added`  
-**Routing Key**: `user.social.friend_added`
+**Routing Key**: `user.social.friend_added`  
+**Status**: ⚠️ NOT YET IMPLEMENTED
 
 **Payload**:
 ```json
@@ -207,13 +250,14 @@ Events gerelateerd aan gebruikersacties buiten gameplay.
 
 ---
 
-### 3. Platform Events
+### 4. Platform Events
 
 Events gerelateerd aan platform interacties en transacties.
 
-#### 3.1 Game Page Visit
+#### 4.1 Game Page Visit
 **Event Type**: `gamePage_visit`  
-**Routing Key**: `platform.page.visited`
+**Routing Key**: `platform.page.visited`  
+**Status**: ✅ IMPLEMENTED
 
 **Payload**:
 ```json
@@ -232,17 +276,19 @@ Events gerelateerd aan platform interacties en transacties.
 
 ---
 
-#### 3.2 Purchase Made
+#### 4.2 Purchase Made
 **Event Type**: `purchase_made`  
-**Routing Key**: `platform.transaction.purchase`
+**Routing Key**: `platform.transaction.purchase`  
+**Status**: ✅ IMPLEMENTED
 
 **Payload**:
 ```json
 {
   "event_type": "purchase_made",
-  "timestamp": "2024-12-04T14:15:00Z",
-  "user_id": "uuid",
+  "@timestamp": "2024-12-04T14:15:00Z",
+  "player_id": "uuid",
   "game_id": "uuid",
+  "game_name": "Chess",
   "product_type": "game|subscription|premium_feature",
   "amount": 15.99,
   "currency": "EUR",
@@ -250,20 +296,23 @@ Events gerelateerd aan platform interacties en transacties.
 }
 ```
 
+**Note**: Implementation uses `player_id` and `@timestamp` instead of `user_id` and `timestamp` for consistency.
+
 **Analytics gebruik**: Revenue tracking, conversion rate, ARPU
 
 ---
 
-#### 3.3 Payment Made
+#### 4.3 Payment Made
 **Event Type**: `payment_made`  
-**Routing Key**: `platform.transaction.payment`
+**Routing Key**: `platform.transaction.payment`  
+**Status**: ✅ IMPLEMENTED
 
 **Payload**:
 ```json
 {
   "event_type": "payment_made",
-  "timestamp": "2024-12-04T14:16:00Z",
-  "user_id": "uuid",
+  "@timestamp": "2024-12-04T14:16:00Z",
+  "player_id": "uuid",
   "transaction_id": "uuid",
   "payment_method": "credit_card|paypal|ideal",
   "amount": 15.99,
@@ -272,13 +321,16 @@ Events gerelateerd aan platform interacties en transacties.
 }
 ```
 
+**Note**: Implementation uses `player_id` and `@timestamp` for consistency.
+
 **Analytics gebruik**: Payment success rate, payment method preferences
 
 ---
 
-#### 3.4 System Error
+#### 4.4 System Error
 **Event Type**: `system_error`  
-**Routing Key**: `platform.system.error`
+**Routing Key**: `platform.system.error`  
+**Status**: ⚠️ NOT YET IMPLEMENTED
 
 **Payload**:
 ```json
